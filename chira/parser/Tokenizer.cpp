@@ -1,0 +1,193 @@
+// Copyright 2025 PragmaTwice
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#include "chira/parser/Tokenizer.h"
+#include "llvm/Support/Error.h"
+
+namespace chira::parser {
+
+char Tokenizer::peek() const {
+  if (pos >= input.size())
+    return 0;
+  return input[pos];
+}
+
+char Tokenizer::advance() {
+  char ch = input[pos++];
+  if (ch == '\n') {
+    line++;
+    column = 1;
+  } else {
+    column++;
+  }
+  return ch;
+}
+
+bool Tokenizer::eof() const { return pos >= input.size(); }
+
+llvm::Error Tokenizer::Tokenize() {
+  while (!eof()) {
+    char ch = peek();
+
+    llvm::Error error = llvm::Error::success();
+    if (ch == '(') {
+      error = consumeExprBegin();
+    } else if (ch == ')') {
+      error = consumeExprEnd();
+    } else if (std::isspace(ch)) {
+      error = consumeWhitespace();
+    } else if (ch == ';') {
+      error = consumeComment();
+    } else if (ch == '"') {
+      error = consumeString();
+    } else {
+      error = consumeIdentifierOrNumber();
+    }
+
+    if (error)
+      return error;
+  }
+
+  if (paren_level != 0)
+    return llvm::createStringError("parenthesis not matched");
+
+  return llvm::Error::success();
+}
+
+llvm::Error Tokenizer::consumeExprBegin() {
+  paren_level++;
+
+  result.emplace_back(Token::EXPR_BEGIN, "", filename, line, column, ctx);
+
+  advance();
+  return llvm::Error::success();
+}
+
+llvm::Error Tokenizer::consumeExprEnd() {
+  paren_level--;
+
+  if (paren_level < 0)
+    return llvm::createStringError("parenthesis not matched");
+
+  result.emplace_back(Token::EXPR_END, "", filename, line, column, ctx);
+
+  advance();
+  return llvm::Error::success();
+}
+
+llvm::Error Tokenizer::consumeString() {
+  size_t start_line = line;
+  size_t start_col = column;
+  std::string value;
+
+  advance();
+
+  while (!eof()) {
+    char ch = advance();
+    if (ch == '"') {
+      result.emplace_back(Token::STRING, value, filename, start_line, start_col,
+                          ctx);
+
+      return llvm::Error::success();
+    } else if (ch == '\\') {
+      if (eof())
+        return llvm::createStringError("unterminated escape sequence");
+
+      char next = advance();
+      if (next == 'n')
+        value += '\n';
+      else if (next == 't')
+        value += '\t';
+      else if (next == '\\')
+        value += '\\';
+      else if (next == '"')
+        value += '"';
+      else if (next == 'r')
+        value += '\r';
+      else
+        return llvm::createStringError("invalid escape character");
+    } else {
+      value += ch;
+    }
+  }
+
+  return llvm::createStringError("unterminated string literal");
+}
+
+llvm::Error Tokenizer::consumeIdentifierOrNumber() {
+  size_t start_col = column;
+  std::string value;
+
+  while (!eof() && !isspace(peek()) && peek() != '(' && peek() != ')' &&
+         peek() != ';' && peek() != '"') {
+    value += advance();
+  }
+
+  bool is_number = isNumber(value);
+
+  result.emplace_back(is_number ? Token::NUMBER : Token::IDENTIFER, value,
+                      filename, line, start_col, ctx);
+  return llvm::Error::success();
+}
+
+llvm::Error Tokenizer::consumeWhitespace() {
+  while (!eof() && isspace(peek()))
+    advance();
+
+  return llvm::Error::success();
+}
+
+llvm::Error Tokenizer::consumeComment() {
+  while (!eof() && peek() != '\n')
+    advance();
+
+  return llvm::Error::success();
+}
+
+bool Tokenizer::isNumber(const std::string &value) {
+  size_t i = 0, n = value.size();
+
+  if (i < n && (value[i] == '+' || value[i] == '-'))
+    i++;
+
+  bool is_num = false;
+  bool has_dot = false;
+  bool has_exp = false;
+
+  while (i < n) {
+    if (std::isdigit(value[i])) {
+      is_num = true;
+      i++;
+    } else if (value[i] == '.') {
+      if (has_dot || has_exp)
+        return false;
+      has_dot = true;
+      i++;
+    } else if (value[i] == 'e' || value[i] == 'E') {
+      if (!is_num || has_exp)
+        return false;
+      has_exp = true;
+      is_num = false;
+      i++;
+      if (i < n && (value[i] == '+' || value[i] == '-'))
+        i++;
+    } else {
+      break;
+    }
+  }
+
+  return is_num && i == n;
+}
+
+} // namespace chira::parser
