@@ -17,6 +17,50 @@
 
 namespace chira::parser {
 
+std::string Token::Quoted(const std::string &val) {
+  std::string res;
+  res.reserve(val.size() + 2);
+
+  res += "\"";
+  for (char c : val) {
+    if (c == '\n')
+      res += "\\n";
+    else if (c == '\t')
+      res += "\\t";
+    else if (c == '\"')
+      res += "\\\"";
+    else if (c == '\t')
+      res += "\\t";
+    else if (c == '\r')
+      res += "\\r";
+    else if (c == '\\')
+      res += "\\\\";
+    else
+      res += c;
+  }
+  res += "\"";
+
+  return res;
+}
+
+std::string Token::ToString() const {
+  std::string str;
+  llvm::raw_string_ostream os(str);
+  os << "<";
+  if (kind == EXPR_BEGIN)
+    os << "BEGIN";
+  else if (kind == EXPR_END)
+    os << "END";
+  else if (kind == IDENTIFER)
+    os << "ID " << val;
+  else if (kind == NUMBER)
+    os << "NUM " << val;
+  else if (kind == STRING)
+    os << "STR " << Quoted(val);
+  os << ", " << loc << ">";
+  return str;
+}
+
 char Tokenizer::peek() const {
   if (pos >= input.size())
     return 0;
