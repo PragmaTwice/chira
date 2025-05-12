@@ -26,6 +26,7 @@ llvm::Error Parser::Parse() {
 
   auto ctx = builder.getContext();
   auto type = sexpr::ExprType::get(ctx);
+  auto unknown_loc = mlir::UnknownLoc::get(ctx);
 
   for (const auto &token : input) {
     if (token.kind == Token::EXPR_BEGIN) {
@@ -47,6 +48,8 @@ llvm::Error Parser::Parse() {
           token.loc, type, mlir::StringAttr::get(ctx, token.val)));
     }
   }
+
+  builder.create<sexpr::RootOp>(unknown_loc, type, current);
 
   return llvm::Error::success();
 }

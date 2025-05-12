@@ -54,6 +54,22 @@ def SExpr_SOp : SExpr_Op<"s"> {
   }];
 }
 
+def SExpr_RootOp : SExpr_Op<"root"> {
+  let summary = "represents the root node of the S-expression tree";
+
+  let arguments = (ins
+    Variadic<SExpr_Expr>:$exprs
+  );
+
+  let results = (outs
+    SExpr_Expr:$res
+  );
+
+  let assemblyFormat = [{
+    $exprs attr-dict
+  }];
+}
+
 def SExpr_IdOp : SExpr_Op<"id"> {
   let summary = "represents an identifier";
 
