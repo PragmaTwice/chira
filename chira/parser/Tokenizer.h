@@ -18,8 +18,7 @@
 #include "chira/parser/Input.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
-#include "llvm/Support/Error.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/LogicalResult.h"
 
 namespace chira::parser {
 
@@ -55,9 +54,10 @@ public:
   using Result = std::vector<Token>;
 
   Tokenizer(mlir::MLIRContext &ctx, Input input)
-      : ctx(ctx), input(input.Content()), filename(input.Filename()) {}
+      : ctx(ctx), diag(ctx.getDiagEngine()), input(input.Content()),
+        filename(input.Filename()) {}
 
-  llvm::Error Tokenize();
+  llvm::LogicalResult Tokenize();
   Result GetResult() { return result; }
 
 private:
@@ -65,16 +65,20 @@ private:
   char advance();
   bool eof() const;
 
-  llvm::Error consumeExprBegin();
-  llvm::Error consumeExprEnd();
-  llvm::Error consumeString();
-  llvm::Error consumeIdentifierOrNumber();
-  llvm::Error consumeWhitespace();
-  llvm::Error consumeComment();
+  llvm::LogicalResult consumeExprBegin();
+  llvm::LogicalResult consumeExprEnd();
+  llvm::LogicalResult consumeString();
+  llvm::LogicalResult consumeIdentifierOrNumber();
+  llvm::LogicalResult consumeWhitespace();
+  llvm::LogicalResult consumeComment();
+
+  mlir::FileLineColLoc currentLoc();
+  mlir::InFlightDiagnostic emitError();
 
   static bool isNumber(const std::string &value);
 
   mlir::MLIRContext &ctx;
+  mlir::DiagnosticEngine &diag;
 
   std::string input;
   std::string filename;

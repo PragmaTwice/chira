@@ -16,11 +16,11 @@
 #include "chira/dialect/sexpr/SExprOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Location.h"
-#include "llvm/Support/Error.h"
+#include "llvm/Support/LogicalResult.h"
 
 namespace chira::parser {
 
-llvm::Error Parser::Parse() {
+llvm::LogicalResult Parser::Parse() {
   std::vector<std::vector<mlir::Value>> stack;
   std::vector<mlir::Value> current;
 
@@ -51,7 +51,7 @@ llvm::Error Parser::Parse() {
 
   builder.create<sexpr::RootOp>(unknown_loc, type, current);
 
-  return llvm::Error::success();
+  return llvm::success();
 }
 
 } // namespace chira::parser

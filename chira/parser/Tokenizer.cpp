@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "chira/parser/Tokenizer.h"
-#include "llvm/Support/Error.h"
+#include "mlir/IR/Diagnostics.h"
+#include "mlir/IR/Location.h"
+#include "llvm/Support/LogicalResult.h"
 
 namespace chira::parser {
 
@@ -80,57 +82,69 @@ char Tokenizer::advance() {
 
 bool Tokenizer::eof() const { return pos >= input.size(); }
 
-llvm::Error Tokenizer::Tokenize() {
+llvm::LogicalResult Tokenizer::Tokenize() {
   while (!eof()) {
     char ch = peek();
 
-    llvm::Error error = llvm::Error::success();
+    llvm::LogicalResult res = llvm::success();
     if (ch == '(') {
-      error = consumeExprBegin();
+      res = consumeExprBegin();
     } else if (ch == ')') {
-      error = consumeExprEnd();
+      res = consumeExprEnd();
     } else if (std::isspace(ch)) {
-      error = consumeWhitespace();
+      res = consumeWhitespace();
     } else if (ch == ';') {
-      error = consumeComment();
+      res = consumeComment();
     } else if (ch == '"') {
-      error = consumeString();
+      res = consumeString();
     } else {
-      error = consumeIdentifierOrNumber();
+      res = consumeIdentifierOrNumber();
     }
 
-    if (error)
-      return error;
+    if (llvm::failed(res))
+      return res;
   }
 
-  if (paren_level != 0)
-    return llvm::createStringError("parenthesis not matched");
+  if (paren_level != 0) {
+    emitError() << "parenthesis not matched";
+    return llvm::failure();
+  }
 
-  return llvm::Error::success();
+  return llvm::success();
 }
 
-llvm::Error Tokenizer::consumeExprBegin() {
+mlir::FileLineColLoc Tokenizer::currentLoc() {
+  return mlir::FileLineColLoc::get(&ctx, filename, line, column);
+}
+
+mlir::InFlightDiagnostic Tokenizer::emitError() {
+  return diag.emit(currentLoc(), mlir::DiagnosticSeverity::Error);
+}
+
+llvm::LogicalResult Tokenizer::consumeExprBegin() {
   paren_level++;
 
   result.emplace_back(Token::EXPR_BEGIN, "", filename, line, column, ctx);
 
   advance();
-  return llvm::Error::success();
+  return llvm::success();
 }
 
-llvm::Error Tokenizer::consumeExprEnd() {
+llvm::LogicalResult Tokenizer::consumeExprEnd() {
   paren_level--;
 
-  if (paren_level < 0)
-    return llvm::createStringError("parenthesis not matched");
+  if (paren_level < 0) {
+    emitError() << "parenthesis not matched";
+    return llvm::failure();
+  }
 
   result.emplace_back(Token::EXPR_END, "", filename, line, column, ctx);
 
   advance();
-  return llvm::Error::success();
+  return llvm::success();
 }
 
-llvm::Error Tokenizer::consumeString() {
+llvm::LogicalResult Tokenizer::consumeString() {
   size_t start_line = line;
   size_t start_col = column;
   std::string value;
@@ -143,10 +157,12 @@ llvm::Error Tokenizer::consumeString() {
       result.emplace_back(Token::STRING, value, filename, start_line, start_col,
                           ctx);
 
-      return llvm::Error::success();
+      return llvm::success();
     } else if (ch == '\\') {
-      if (eof())
-        return llvm::createStringError("unterminated escape sequence");
+      if (eof()) {
+        emitError() << "unterminated escape sequence";
+        return llvm::failure();
+      }
 
       char next = advance();
       if (next == 'n')
@@ -159,17 +175,20 @@ llvm::Error Tokenizer::consumeString() {
         value += '"';
       else if (next == 'r')
         value += '\r';
-      else
-        return llvm::createStringError("invalid escape character");
+      else {
+        emitError() << "invalid escape character";
+        return llvm::failure();
+      }
     } else {
       value += ch;
     }
   }
 
-  return llvm::createStringError("unterminated string literal");
+  emitError() << "unterminated string literal";
+  return llvm::failure();
 }
 
-llvm::Error Tokenizer::consumeIdentifierOrNumber() {
+llvm::LogicalResult Tokenizer::consumeIdentifierOrNumber() {
   size_t start_col = column;
   std::string value;
 
@@ -182,21 +201,21 @@ llvm::Error Tokenizer::consumeIdentifierOrNumber() {
 
   result.emplace_back(is_number ? Token::NUMBER : Token::IDENTIFER, value,
                       filename, line, start_col, ctx);
-  return llvm::Error::success();
+  return llvm::success();
 }
 
-llvm::Error Tokenizer::consumeWhitespace() {
+llvm::LogicalResult Tokenizer::consumeWhitespace() {
   while (!eof() && isspace(peek()))
     advance();
 
-  return llvm::Error::success();
+  return llvm::success();
 }
 
-llvm::Error Tokenizer::consumeComment() {
+llvm::LogicalResult Tokenizer::consumeComment() {
   while (!eof() && peek() != '\n')
     advance();
 
-  return llvm::Error::success();
+  return llvm::success();
 }
 
 bool Tokenizer::isNumber(const std::string &value) {

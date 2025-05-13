@@ -31,7 +31,10 @@ struct Input {
   static llvm::Expected<Input> FromFile(llvm::StringRef filename) {
     auto result = llvm::MemoryBuffer::getFile(filename, true);
     if (!result)
-      return llvm::createStringError(result.getError(), "failed to read file");
+      return llvm::createStringError(
+          result.getError(), llvm::Twine("failed to read file `") + filename +
+                                 "` (due to: " + result.getError().message() +
+                                 ")");
 
     return Input(filename, result->get()->getBuffer());
   }

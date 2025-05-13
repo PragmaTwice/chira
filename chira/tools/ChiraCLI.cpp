@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include "chira/parser/Parser.h"
+#include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/Passes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
@@ -36,9 +38,11 @@ int main(int argc, char *argv[]) {
   llvm::cl::ParseCommandLineOptions(
       argc, argv, "Chira CLI - MLIR-based Scheme compiler and runtime\n");
 
+  mlir::MLIRContext context;
+
   auto input_res = chira::parser::Input::FromFile(InputFilename);
   if (!input_res) {
-    llvm::errs() << "input error: " << input_res.takeError() << "\n";
+    llvm::errs() << "error: " << input_res.takeError() << "\n";
     return 1;
   }
   auto input = *input_res;
@@ -46,32 +50,42 @@ int main(int argc, char *argv[]) {
   std::error_code ec;
   llvm::raw_fd_ostream os(OutputFilename, ec);
   if (ec) {
-    llvm::errs() << "output error: " << ec.message() << "\n";
+    llvm::errs() << "error: "
+                 << "failed to open output path `" << OutputFilename
+                 << "` (due to: " << ec.message() << ")"
+                 << "\n";
     return 1;
   }
 
   mlir::OpPrintingFlags flags;
   flags.enableDebugInfo();
 
-  mlir::MLIRContext context;
   chira::parser::Tokenizer tokenizer(context, input);
 
-  auto err = tokenizer.Tokenize();
-  if (err) {
-    llvm::errs() << "tokenizer error: " << err << "\n";
+  auto res = tokenizer.Tokenize();
+  if (res.failed()) {
     return 1;
   }
 
   auto tokens = tokenizer.GetResult();
   chira::parser::Parser parser(context, tokens);
 
-  err = parser.Parse();
-  if (err) {
-    llvm::errs() << "parser error: " << err << "\n";
+  res = parser.Parse();
+  if (res.failed()) {
     return 1;
   }
 
   auto module = parser.Module();
+
+  mlir::PassManager pm(module->getContext());
+
+  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createCSEPass());
+
+  if (mlir::failed(pm.run(module))) {
+    return 1;
+  }
+
   module->print(os, flags);
   return 0;
 }

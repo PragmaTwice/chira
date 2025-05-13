@@ -22,8 +22,7 @@
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
-#include "llvm/Support/Error.h"
-#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/LogicalResult.h"
 
 namespace chira::parser {
 
@@ -31,7 +30,7 @@ class Parser {
 public:
   using Input = Tokenizer::Result;
 
-  llvm::Error Parse();
+  llvm::LogicalResult Parse();
 
   Parser(mlir::MLIRContext &ctx, Input input)
       : module(mlir::ModuleOp::create(mlir::UnknownLoc::get(&ctx))),
