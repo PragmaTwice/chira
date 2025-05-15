@@ -105,7 +105,6 @@ struct ConvertSOp : mlir::OpRewritePattern<SOp> {
     auto expr_type = sexpr::ExprType::get(getContext());
     rewriter.replaceOpWithNewOp<sexpr::DefineSyntaxOp>(op, expr_type, name,
                                                        literal_list, patterns);
-    rewriter.eraseOp(syntax_rules);
     return mlir::success();
   }
 

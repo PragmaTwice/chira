@@ -38,7 +38,7 @@ class SExpr_Op<string mnemonic, list<Trait> traits = []> :
   let extraClassDeclaration = "";
 }
 
-def SExpr_SOp : SExpr_Op<"s"> {
+def SExpr_SOp : SExpr_Op<"s", [Pure]> {
   let summary = "represents an S-expression";
 
   let arguments = (ins
