@@ -15,13 +15,27 @@
 #include "chira/parser/Parser.h"
 #include "chira/dialect/sexpr/SExprOps.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Location.h"
+#include "mlir/IR/Verifier.h"
 #include "llvm/Support/LogicalResult.h"
 
 namespace chira::parser {
 
+mlir::Location Parser::MergeLoc(mlir::Location start_loc,
+                                mlir::Location end_loc) {
+  auto start =
+      mlir::dyn_cast<mlir::FileLineColLoc>((mlir::LocationAttr)start_loc);
+
+  auto end = mlir::dyn_cast<mlir::FileLineColLoc>((mlir::LocationAttr)end_loc);
+
+  return mlir::Location(mlir::FileLineColRange::get(
+      start.getContext(), start.getFilename(), start.getLine(),
+      start.getColumn(), end.getLine(), end.getColumn()));
+}
+
 llvm::LogicalResult Parser::Parse() {
-  std::vector<std::vector<mlir::Value>> stack;
+  std::vector<std::pair<std::vector<mlir::Value>, mlir::Location>> stack;
   std::vector<mlir::Value> current;
 
   auto ctx = builder.getContext();
@@ -30,13 +44,15 @@ llvm::LogicalResult Parser::Parse() {
 
   for (const auto &token : input) {
     if (token.kind == Token::EXPR_BEGIN) {
-      stack.push_back(current);
+      stack.emplace_back(current, token.loc);
       current.clear();
     } else if (token.kind == Token::EXPR_END) {
       auto expr = current;
-      current = stack.back();
+      mlir::Location start_loc = unknown_loc;
+      std::tie(current, start_loc) = stack.back();
       stack.pop_back();
-      current.push_back(builder.create<sexpr::SOp>(token.loc, type, expr));
+      current.push_back(builder.create<sexpr::SOp>(
+          MergeLoc(start_loc, token.loc), type, expr));
     } else if (token.kind == Token::IDENTIFER) {
       current.push_back(builder.create<sexpr::IdOp>(
           token.loc, type, mlir::StringAttr::get(ctx, token.val)));
@@ -50,6 +66,12 @@ llvm::LogicalResult Parser::Parse() {
   }
 
   builder.create<sexpr::RootOp>(unknown_loc, type, current);
+
+  if (failed(mlir::verify(module))) {
+    mlir::emitError(unknown_loc)
+        << "the generated IR failed to pass verification";
+    return llvm::failure();
+  }
 
   return llvm::success();
 }

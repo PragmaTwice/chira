@@ -15,10 +15,10 @@
 #ifndef CHIRA_PARSER_TOKENZIER
 #define CHIRA_PARSER_TOKENZIER
 
-#include "chira/parser/Input.h"
 #include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
 #include "llvm/Support/LogicalResult.h"
+#include "llvm/Support/MemoryBuffer.h"
 
 namespace chira::parser {
 
@@ -44,6 +44,12 @@ struct Token {
         size_t column, mlir::MLIRContext &ctx)
       : Token(kind, std::move(val),
               mlir::FileLineColLoc::get(&ctx, filename, line, column)) {}
+  Token(Kind kind, std::string val, llvm::StringRef filename, size_t start_line,
+        size_t start_col, size_t end_line, size_t end_col,
+        mlir::MLIRContext &ctx)
+      : Token(kind, std::move(val),
+              mlir::FileLineColRange::get(&ctx, filename, start_line, start_col,
+                                          end_line, end_col)) {}
 
   static std::string Quoted(const std::string &val);
   std::string ToString() const;
@@ -51,11 +57,12 @@ struct Token {
 
 class Tokenizer {
 public:
+  using Input = std::unique_ptr<llvm::MemoryBuffer>;
   using Result = std::vector<Token>;
 
   Tokenizer(mlir::MLIRContext &ctx, Input input)
-      : ctx(ctx), diag(ctx.getDiagEngine()), input(input.Content()),
-        filename(input.Filename()) {}
+      : ctx(ctx), diag(ctx.getDiagEngine()), input(input->getBuffer()),
+        filename(input->getBufferIdentifier()) {}
 
   llvm::LogicalResult Tokenize();
   Result GetResult() { return result; }

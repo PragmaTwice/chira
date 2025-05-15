@@ -40,6 +40,9 @@ public:
 
   mlir::ModuleOp Module() { return module; }
 
+  static mlir::Location MergeLoc(mlir::Location start_loc,
+                                 mlir::Location end_loc);
+
 private:
   mlir::ModuleOp module;
   mlir::OpBuilder builder;

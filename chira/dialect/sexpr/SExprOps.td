@@ -118,4 +118,22 @@ def SExpr_StrOp : SExpr_Op<"str", [Pure]> {
   }];
 }
 
+def SExpr_DefineSyntaxOp : SExpr_Op<"define_syntax"> {
+  let summary = "represents a (define-syntax ...) in Scheme";
+
+  let arguments = (ins
+    SExpr_Expr:$name,
+    SExpr_Expr:$literals,
+    Variadic<SExpr_Expr>:$patterns
+  );
+
+  let results = (outs
+    SExpr_Expr:$res
+  );
+
+  let assemblyFormat = [{
+    $name $literals $patterns attr-dict
+  }];
+}
+
 #endif // SEXPR_OPS

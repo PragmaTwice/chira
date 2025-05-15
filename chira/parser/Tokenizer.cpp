@@ -16,6 +16,7 @@
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Location.h"
 #include "llvm/Support/LogicalResult.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace chira::parser {
 
@@ -155,7 +156,7 @@ llvm::LogicalResult Tokenizer::consumeString() {
     char ch = advance();
     if (ch == '"') {
       result.emplace_back(Token::STRING, value, filename, start_line, start_col,
-                          ctx);
+                          line, column, ctx);
 
       return llvm::success();
     } else if (ch == '\\') {
@@ -200,7 +201,7 @@ llvm::LogicalResult Tokenizer::consumeIdentifierOrNumber() {
   bool is_number = isNumber(value);
 
   result.emplace_back(is_number ? Token::NUMBER : Token::IDENTIFER, value,
-                      filename, line, start_col, ctx);
+                      filename, line, start_col, line, column, ctx);
   return llvm::success();
 }
 

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/parser/Parser.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
@@ -19,6 +20,9 @@
 #include "mlir/Transforms/Passes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SMLoc.h"
+#include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
 #include <system_error>
 
@@ -40,12 +44,20 @@ int main(int argc, char *argv[]) {
 
   mlir::MLIRContext context;
 
-  auto input_res = chira::parser::Input::FromFile(InputFilename);
+  auto input_res = llvm::MemoryBuffer::getFileOrSTDIN(InputFilename);
   if (!input_res) {
-    llvm::errs() << "error: " << input_res.takeError() << "\n";
+    llvm::errs() << "error: failed to read file `" << InputFilename
+                 << "` (due to: " << input_res.getError().message() << ")"
+                 << "\n";
     return 1;
   }
-  auto input = *input_res;
+  auto input = std::move(*input_res);
+
+  llvm::SourceMgr source_mgr;
+  source_mgr.AddNewSourceBuffer(
+      llvm::MemoryBuffer::getMemBuffer(input->getMemBufferRef()),
+      llvm::SMLoc());
+  mlir::SourceMgrDiagnosticHandler diag_handler(source_mgr, &context);
 
   std::error_code ec;
   llvm::raw_fd_ostream os(OutputFilename, ec);
@@ -60,7 +72,7 @@ int main(int argc, char *argv[]) {
   mlir::OpPrintingFlags flags;
   flags.enableDebugInfo();
 
-  chira::parser::Tokenizer tokenizer(context, input);
+  chira::parser::Tokenizer tokenizer(context, std::move(input));
 
   auto res = tokenizer.Tokenize();
   if (res.failed()) {
@@ -81,6 +93,7 @@ int main(int argc, char *argv[]) {
 
   pm.addPass(mlir::createCanonicalizerPass());
   pm.addPass(mlir::createCSEPass());
+  pm.addPass(chira::sexpr::createDefineSyntaxConstructorPass());
 
   if (mlir::failed(pm.run(module))) {
     return 1;

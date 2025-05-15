@@ -12,12 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_executable(chira-cli
-    ChiraCLI.cpp
-)
+add_mlir_library(SExprTransforms
+    Passes.h
+    DefineSyntaxConstructor.cpp
 
-target_link_libraries(chira-cli PUBLIC
-    ChiraParser
-    ChiraLLVMTarget
-    SExprTransforms
+    LINK_LIBS PUBLIC
+    MLIRIR
+    SExprOps
 )
