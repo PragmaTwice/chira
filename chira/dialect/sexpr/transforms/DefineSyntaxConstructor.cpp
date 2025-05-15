@@ -34,9 +34,20 @@ struct ConversionContext {
   bool Good() { return !has_error; }
 };
 
-struct ConvertSOp : mlir::OpRewritePattern<SOp> {
-  ConvertSOp(mlir::MLIRContext *ctx, ConversionContext &cvt_ctx)
+template <typename Op> struct RewritePattern : mlir::OpRewritePattern<Op> {
+  RewritePattern(mlir::MLIRContext *ctx, ConversionContext &cvt_ctx)
       : mlir::OpRewritePattern<SOp>(ctx), cvt_ctx(cvt_ctx) {}
+
+  auto emitError(mlir::Location loc) const {
+    cvt_ctx.SetError();
+    return mlir::emitError(loc);
+  }
+
+  ConversionContext &cvt_ctx;
+};
+
+struct ConvertSOp : RewritePattern<SOp> {
+  using RewritePattern<SOp>::RewritePattern;
 
   mlir::LogicalResult
   matchAndRewrite(SOp op, mlir::PatternRewriter &rewriter) const override {
@@ -49,25 +60,21 @@ struct ConvertSOp : mlir::OpRewritePattern<SOp> {
       return mlir::failure();
 
     if (exprs.size() != 3) {
-      mlir::emitError(op->getLoc())
-          << "expected 2 operands in (define-syntax ..)";
-      cvt_ctx.SetError();
+      emitError(op->getLoc()) << "expected 2 operands in (define-syntax ..)";
       return mlir::failure();
     }
 
     auto name = llvm::dyn_cast<IdOp>(exprs[1].getDefiningOp());
     if (!name) {
-      mlir::emitError(exprs[1].getLoc())
+      emitError(exprs[1].getLoc())
           << "expected identifier for <name> in (define-syntax <name> ..)";
-      cvt_ctx.SetError();
       return mlir::failure();
     }
 
     auto syntax_rules = llvm::dyn_cast<SOp>(exprs[2].getDefiningOp());
     if (!syntax_rules) {
-      mlir::emitError(exprs[2].getLoc())
+      emitError(exprs[2].getLoc())
           << "expected S-expr for the 2nd operand of (define-syntax ..)";
-      cvt_ctx.SetError();
       return mlir::failure();
     }
 
@@ -76,39 +83,60 @@ struct ConvertSOp : mlir::OpRewritePattern<SOp> {
         llvm::dyn_cast<IdOp>(syntax_rules_exprs.front().getDefiningOp());
     if (!sr_op_name || sr_op_name.getId() != "syntax-rules" ||
         syntax_rules_exprs.size() < 3) {
-      mlir::emitError(syntax_rules->getLoc())
+      emitError(syntax_rules->getLoc())
           << "expected (syntax-rules ..) in (define-syntax ..)";
-      cvt_ctx.SetError();
       return mlir::failure();
     }
 
     auto literal_list =
         llvm::dyn_cast<SOp>(syntax_rules_exprs[1].getDefiningOp());
     if (!literal_list) {
-      mlir::emitError(syntax_rules_exprs[1].getLoc())
+      emitError(syntax_rules_exprs[1].getLoc())
           << "expected literal list in (syntax-rules ..)";
-      cvt_ctx.SetError();
       return mlir::failure();
     }
 
     for (auto e : literal_list.getExprs()) {
       if (!llvm::isa<IdOp>(e.getDefiningOp())) {
-        mlir::emitError(e.getLoc())
+        emitError(e.getLoc())
             << "expected all identifiers for literal list in (syntax-rules ..)";
-        cvt_ctx.SetError();
         return mlir::failure();
       }
     }
 
     auto patterns = syntax_rules_exprs.drop_front(2);
+    for (auto pattern : patterns) {
+      auto p = llvm::dyn_cast<SOp>(pattern.getDefiningOp());
+      if (!p) {
+        emitError(pattern.getLoc())
+            << "expected S-expr for patterns in (syntax-rules ..)";
+        return mlir::failure();
+      }
+
+      auto p_exprs = p.getExprs();
+      if (p_exprs.size() != 2 || !llvm::isa<SOp>(p_exprs[0].getDefiningOp())) {
+        emitError(pattern.getLoc())
+            << "expected (<pattern> <template>) for patterns in (syntax-rules "
+               "..)";
+        return mlir::failure();
+      }
+
+      auto p_lhs = llvm::dyn_cast<SOp>(p_exprs[0].getDefiningOp()).getExprs();
+      if (p_lhs.empty() || !llvm::isa<IdOp>(p_lhs[0].getDefiningOp()) ||
+          llvm::dyn_cast<IdOp>(p_lhs[0].getDefiningOp()).getId() !=
+              name.getId()) {
+        emitError(pattern.getLoc())
+            << "patterns should be started by the syntax name in (syntax-rules "
+               "..)";
+        return mlir::failure();
+      }
+    }
 
     auto expr_type = sexpr::ExprType::get(getContext());
     rewriter.replaceOpWithNewOp<sexpr::DefineSyntaxOp>(op, expr_type, name,
                                                        literal_list, patterns);
     return mlir::success();
   }
-
-  ConversionContext &cvt_ctx;
 };
 
 struct DefineSyntaxConstructorPass
