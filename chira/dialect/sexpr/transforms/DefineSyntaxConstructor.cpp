@@ -27,25 +27,6 @@ namespace chira::sexpr {
 
 namespace {
 
-struct ConversionContext {
-  bool has_error = false;
-
-  void SetError() { has_error = true; }
-  bool Good() { return !has_error; }
-};
-
-template <typename Op> struct RewritePattern : mlir::OpRewritePattern<Op> {
-  RewritePattern(mlir::MLIRContext *ctx, ConversionContext &cvt_ctx)
-      : mlir::OpRewritePattern<SOp>(ctx), cvt_ctx(cvt_ctx) {}
-
-  auto emitError(mlir::Location loc) const {
-    cvt_ctx.SetError();
-    return mlir::emitError(loc);
-  }
-
-  ConversionContext &cvt_ctx;
-};
-
 struct ConvertSOp : RewritePattern<SOp> {
   using RewritePattern<SOp>::RewritePattern;
 
@@ -126,7 +107,8 @@ struct ConvertSOp : RewritePattern<SOp> {
           llvm::dyn_cast<IdOp>(p_lhs[0].getDefiningOp()).getId() !=
               name.getId()) {
         emitError(pattern.getLoc())
-            << "patterns should be started by the syntax name in (syntax-rules "
+            << "patterns should be started by the syntax name " << name.getId()
+            << " in (syntax-rules "
                "..)";
         return mlir::failure();
       }

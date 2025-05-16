@@ -15,6 +15,7 @@
 add_mlir_library(SExprTransforms
     Passes.h
     DefineSyntaxConstructor.cpp
+    MacroExpander.cpp
 
     LINK_LIBS PUBLIC
     MLIRIR

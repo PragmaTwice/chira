@@ -17,7 +17,6 @@ add_mlir_library(ChiraParser
     Parser.cpp
     Tokenizer.h
     Tokenizer.cpp
-    Input.h
 
     LINK_LIBS PUBLIC
     MLIRIR

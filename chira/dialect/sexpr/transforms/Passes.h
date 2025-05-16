@@ -15,12 +15,34 @@
 #ifndef CHIRA_DIALECT_SEXPR_TRANSFORMS_PASSES
 #define CHIRA_DIALECT_SEXPR_TRANSFORMS_PASSES
 
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/Pass/Pass.h"
 
 namespace chira::sexpr {
 
+struct ConversionContext {
+  bool has_error = false;
+
+  void SetError() { has_error = true; }
+  bool Good() { return !has_error; }
+};
+
+template <typename Op> struct RewritePattern : mlir::OpRewritePattern<Op> {
+  RewritePattern(mlir::MLIRContext *ctx, ConversionContext &cvt_ctx)
+      : mlir::OpRewritePattern<Op>(ctx), cvt_ctx(cvt_ctx) {}
+
+  auto emitError(mlir::Location loc) const {
+    cvt_ctx.SetError();
+    return mlir::emitError(loc);
+  }
+
+  ConversionContext &cvt_ctx;
+};
+
 std::unique_ptr<mlir::Pass> createDefineSyntaxConstructorPass();
 
-}
+std::unique_ptr<mlir::Pass> createMacroExpanderPass();
+
+} // namespace chira::sexpr
 
 #endif // CHIRA_DIALECT_SEXPR_TRANSFORMS_PASSESF
