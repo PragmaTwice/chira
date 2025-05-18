@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/dialect/sexpr/SExprToString.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/parser/Parser.h"
 #include "mlir/IR/Diagnostics.h"
@@ -36,6 +37,12 @@ llvm::cl::opt<std::string> InputFilename(llvm::cl::Positional,
 llvm::cl::opt<std::string>
     OutputFilename("o", llvm::cl::desc("path for the output file"),
                    llvm::cl::init("a.out"), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<bool>
+    MacroExpanderOnly("E",
+                      llvm::cl::desc("only run the macro expander, and output "
+                                     "the source code after expansion"),
+                      llvm::cl::init(false), llvm::cl::cat(CLICat));
 
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
@@ -100,6 +107,11 @@ int main(int argc, char *argv[]) {
 
   if (mlir::failed(pm.run(module))) {
     return 1;
+  }
+
+  if (MacroExpanderOnly) {
+    os << chira::sexpr::ToString(module);
+    return 0;
   }
 
   module->print(os, flags);
