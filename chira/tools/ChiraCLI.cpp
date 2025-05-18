@@ -95,6 +95,8 @@ int main(int argc, char *argv[]) {
   pm.addPass(mlir::createCSEPass());
   pm.addPass(chira::sexpr::createDefineSyntaxConstructorPass());
   pm.addPass(chira::sexpr::createMacroExpanderPass());
+  pm.addPass(mlir::createCanonicalizerPass());
+  pm.addPass(mlir::createCSEPass());
 
   if (mlir::failed(pm.run(module))) {
     return 1;
