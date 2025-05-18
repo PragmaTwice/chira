@@ -17,8 +17,8 @@ add_mlir_dialect(SExprOps sexpr)
 add_mlir_dialect_library(SExprOps
   SExprOps.h
   SExprOps.cpp
-  SExprToString.h
-  SExprToString.cpp
+  SExprPrinter.h
+  SExprPrinter.cpp
 
   DEPENDS
   MLIRSExprOpsIncGen
