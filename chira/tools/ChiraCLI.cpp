@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "chira/dialect/sexpr/SExprToString.h"
+#include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/parser/Parser.h"
 #include "mlir/IR/Diagnostics.h"
@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (MacroExpanderOnly) {
-    os << chira::sexpr::ToString(module);
+    os << chira::sexpr::Printer::Print(module);
     return 0;
   }
 

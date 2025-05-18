@@ -12,43 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "chira/dialect/sexpr/SExprToString.h"
+#include "chira/dialect/sexpr/SExprPrinter.h"
 #include "llvm/Support/raw_ostream.h"
 #include <string>
 
 namespace chira::sexpr {
 
-std::string ToString(mlir::Value op) {
+std::string Printer::Print(mlir::Value op) {
   if (auto id = llvm::dyn_cast<IdOp>(op.getDefiningOp())) {
-    return ToString(id);
+    return Print(id);
   } else if (auto num = llvm::dyn_cast<NumOp>(op.getDefiningOp())) {
-    return ToString(num);
+    return Print(num);
   } else if (auto str = llvm::dyn_cast<StrOp>(op.getDefiningOp())) {
-    return ToString(str);
+    return Print(str);
   } else if (auto s = llvm::dyn_cast<SOp>(op.getDefiningOp())) {
-    return ToString(s);
+    return Print(s);
   } else if (auto root = llvm::dyn_cast<RootOp>(op.getDefiningOp())) {
-    return ToString(root);
+    return Print(root);
   }
 
   llvm_unreachable("unexpected operation type");
 }
 
-std::string ToString(mlir::ModuleOp op) {
+std::string Printer::Print(mlir::ModuleOp op) {
   std::string result;
-  op->walk([&](RootOp op) { result += ToString(op); });
+  op->walk([&](RootOp op) { result += Print(op); });
   return result;
 }
 
-std::string ToString(RootOp op) {
+std::string Printer::Print(RootOp op) {
   std::string result;
   for (auto expr : op.getExprs()) {
-    result += ToString(expr) + "\n";
+    result += Print(expr) + "\n";
   }
   return result;
 }
 
-std::string ToString(SOp op) {
+std::string Printer::Print(SOp op) {
   std::string result;
   result += "(";
   bool first = true;
@@ -58,17 +58,17 @@ std::string ToString(SOp op) {
     } else {
       first = false;
     }
-    result += ToString(expr);
+    result += Print(expr);
   }
   result += ")";
   return result;
 }
 
-std::string ToString(IdOp op) { return op.getId().getValue().str(); }
+std::string Printer::Print(IdOp op) { return op.getId().getValue().str(); }
 
-std::string ToString(NumOp op) { return op.getNum().getValue().str(); }
+std::string Printer::Print(NumOp op) { return op.getNum().getValue().str(); }
 
-std::string ToString(StrOp op) {
+std::string Printer::Print(StrOp op) {
   std::string str;
   llvm::raw_string_ostream os(str);
   op.getStr().print(os);

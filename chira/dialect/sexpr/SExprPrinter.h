@@ -20,13 +20,15 @@
 
 namespace chira::sexpr {
 
-std::string ToString(mlir::Value op);
-std::string ToString(mlir::ModuleOp op);
-std::string ToString(RootOp op);
-std::string ToString(SOp op);
-std::string ToString(IdOp op);
-std::string ToString(NumOp op);
-std::string ToString(StrOp op);
+struct Printer {
+  static std::string Print(mlir::Value op);
+  static std::string Print(mlir::ModuleOp op);
+  static std::string Print(RootOp op);
+  static std::string Print(SOp op);
+  static std::string Print(IdOp op);
+  static std::string Print(NumOp op);
+  static std::string Print(StrOp op);
+};
 
 } // namespace chira::sexpr
 
