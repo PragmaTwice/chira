@@ -22,7 +22,6 @@ jobs:
     - name: Setup LLVM and MLIR
       run: |
         conda install -c conda-forge llvm=20 mlir=20
-        ls $CONDA/lib/cmake/mlir
 
     - name: Configure CMake
       run: |
