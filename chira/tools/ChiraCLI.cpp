@@ -44,6 +44,14 @@ llvm::cl::opt<bool>
                                      "the source code after expansion"),
                       llvm::cl::init(false), llvm::cl::cat(CLICat));
 
+llvm::cl::opt<size_t>
+    MaxLineLength("max-line-length",
+                  llvm::cl::desc("maximum line length for the output source "
+                                 "code (combined with -E, default: "
+                                 "80)"),
+                  llvm::cl::init(chira::sexpr::Printer::MAX_LINE_LENGTH),
+                  llvm::cl::cat(CLICat));
+
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
   llvm::cl::ParseCommandLineOptions(
@@ -110,7 +118,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (MacroExpanderOnly) {
-    os << chira::sexpr::Printer::Print(module);
+    os << chira::sexpr::Printer::Print(module, 0, MaxLineLength);
     return 0;
   }
 

@@ -18,7 +18,8 @@
 
 namespace chira::sexpr {
 
-std::string Printer::Print(mlir::Value op) {
+std::string Printer::Print(mlir::Value op, size_t indent,
+                           size_t max_line_length) {
   if (auto id = llvm::dyn_cast<IdOp>(op.getDefiningOp())) {
     return Print(id);
   } else if (auto num = llvm::dyn_cast<NumOp>(op.getDefiningOp())) {
@@ -26,41 +27,71 @@ std::string Printer::Print(mlir::Value op) {
   } else if (auto str = llvm::dyn_cast<StrOp>(op.getDefiningOp())) {
     return Print(str);
   } else if (auto s = llvm::dyn_cast<SOp>(op.getDefiningOp())) {
-    return Print(s);
+    return Print(s, indent, max_line_length);
   } else if (auto root = llvm::dyn_cast<RootOp>(op.getDefiningOp())) {
-    return Print(root);
+    return Print(root, indent, max_line_length);
   }
 
   llvm_unreachable("unexpected operation type");
 }
 
-std::string Printer::Print(mlir::ModuleOp op) {
+std::string Printer::Print(mlir::ModuleOp op, size_t indent,
+                           size_t max_line_length) {
   std::string result;
-  op->walk([&](RootOp op) { result += Print(op); });
+  op->walk([&](RootOp op) { result += Print(op, indent, max_line_length); });
   return result;
 }
 
-std::string Printer::Print(RootOp op) {
+std::string Printer::Print(RootOp op, size_t indent, size_t max_line_length) {
   std::string result;
   for (auto expr : op.getExprs()) {
-    result += Print(expr) + "\n";
+    result += Print(expr, indent, max_line_length) + "\n";
   }
   return result;
 }
 
-std::string Printer::Print(SOp op) {
-  std::string result;
-  result += "(";
+std::string Printer::IndentStr(size_t indent) {
+  return std::string(indent, ' ');
+}
+
+std::string Printer::Print(SOp op, size_t indent, size_t max_line_length) {
+  std::string one_line = "(";
+
   bool first = true;
   for (auto expr : op.getExprs()) {
     if (!first) {
-      result += " ";
+      one_line += " ";
     } else {
       first = false;
     }
-    result += Print(expr);
+
+    one_line += Print(expr, 0, max_line_length);
   }
-  result += ")";
+  one_line += ")";
+
+  if (one_line.length() + indent <= max_line_length) {
+    return IndentStr(indent) + one_line;
+  }
+
+  std::string result = IndentStr(indent) + "(\n";
+
+  bool firstLine = true;
+  for (auto expr : op.getExprs()) {
+    if (!firstLine) {
+      result += "\n";
+    } else {
+      firstLine = false;
+    }
+
+    if (!llvm::isa<SOp>(expr.getDefiningOp())) {
+      result +=
+          IndentStr(indent + INDENT_WIDTH) + Print(expr, 0, max_line_length);
+    } else {
+      result += Print(expr, indent + INDENT_WIDTH, max_line_length);
+    }
+  }
+
+  result += "\n" + IndentStr(indent) + ")";
   return result;
 }
 

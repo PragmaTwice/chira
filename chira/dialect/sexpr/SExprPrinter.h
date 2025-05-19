@@ -21,13 +21,23 @@
 namespace chira::sexpr {
 
 struct Printer {
-  static std::string Print(mlir::Value op);
-  static std::string Print(mlir::ModuleOp op);
-  static std::string Print(RootOp op);
-  static std::string Print(SOp op);
+  static inline const size_t INDENT_WIDTH = 2;
+  static inline const size_t MAX_LINE_LENGTH = 80;
+
+  static std::string Print(mlir::Value op, size_t indent = 0,
+                           size_t max_line_length = MAX_LINE_LENGTH);
+  static std::string Print(mlir::ModuleOp op, size_t indent = 0,
+                           size_t max_line_length = MAX_LINE_LENGTH);
+  static std::string Print(RootOp op, size_t indent = 0,
+                           size_t max_line_length = MAX_LINE_LENGTH);
+  static std::string Print(SOp op, size_t indent = 0,
+                           size_t max_line_length = MAX_LINE_LENGTH);
   static std::string Print(IdOp op);
   static std::string Print(NumOp op);
   static std::string Print(StrOp op);
+
+private:
+  static std::string IndentStr(size_t indent);
 };
 
 } // namespace chira::sexpr
