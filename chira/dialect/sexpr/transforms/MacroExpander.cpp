@@ -95,14 +95,13 @@ struct MacroExpanderPass
     }
     literals.insert(llvm::dyn_cast<IdOp>(ds.getName().getDefiningOp()).getId());
 
-    std::map<llvm::StringRef, mlir::Operation *> bindings;
     bool matched = false;
-
     for (auto p : ds.getPatterns()) {
       auto pop = llvm::dyn_cast<SOp>(p.getDefiningOp());
       auto pat = pop.getExprs()[0].getDefiningOp();
       auto temp = pop.getExprs()[1].getDefiningOp();
 
+      std::map<llvm::StringRef, mlir::Operation *> bindings;
       if (match(op, pat, literals, bindings)) {
         matched = true;
 
