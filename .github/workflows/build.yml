@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - master
+    - ci-*
+  pull_request:
+    branches:
+    - master
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup LLVM and MLIR
+      run: |
+        conda install -c conda-forge llvm=20 mlir=20
+
+    - name: Configure CMake
+      run: |
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}\
+          -DLLVM_DIR=$CONDA/lib/cmake/llvm -DMLIR_DIR=$CONDA/lib/cmake/mlir
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
