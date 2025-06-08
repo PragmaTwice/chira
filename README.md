@@ -10,6 +10,6 @@ Work in progress to be R7RS-small compatible.
 
 planned IR levels:
 - sexpr: S-expression syntax tree IR (macro expansion)
-- sir: Scheme high-level SSA IR
-- chir + MLIR dialects: middle-level SSA IR
+- sir: Scheme high-level ANF-based IR
+- chir + MLIR dialects: middle-level SSA-based IR
 - LLVM IR: target IR
