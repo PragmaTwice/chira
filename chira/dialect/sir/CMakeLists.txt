@@ -12,13 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_executable(chira-cli
-    ChiraCLI.cpp
-)
+add_mlir_dialect(SIROps sir)
 
-target_link_libraries(chira-cli PUBLIC
-    ChiraParser
-    ChiraLLVMTarget
-    SExprTransforms
-    SIROps # just for test
+add_mlir_dialect_library(SIROps
+  SIROps.h
+  SIROps.cpp
+
+  DEPENDS
+  MLIRSIROpsIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRIR
 )

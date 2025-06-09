@@ -13,3 +13,4 @@
 #  limitations under the License.
 
 add_subdirectory(sexpr)
+add_subdirectory(sir)
