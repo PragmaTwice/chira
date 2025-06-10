@@ -114,7 +114,8 @@ def SIR_CallOp : SIR_Op<"call"> {
 
     let arguments = (ins
       SIR_Var:$callee,
-      Variadic<SIR_Var>:$args
+      Variadic<SIR_Var>:$args,
+      OptionalAttr<Builtin_UnitAttr>:$tail
     );
 
     let results = (outs
