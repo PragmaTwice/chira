@@ -32,6 +32,13 @@ def SIR_Var : TypeDef<SIR_Dialect, "Var"> {
   let summary = "variable in SIR dialect";
 }
 
+// lambda should be binded to form a variable,
+// i.e. bind(lambda, caps..) -> var
+def SIR_Lambda : TypeDef<SIR_Dialect, "Lambda"> {
+  let mnemonic = "lambda";
+  let summary = "lambda in SIR dialect";
+}
+
 class SIR_Op<string mnemonic, list<Trait> traits = []> :
     Op<SIR_Dialect, mnemonic, traits> {
   let extraClassDeclaration = "";
@@ -119,8 +126,15 @@ def SIR_CallOp : SIR_Op<"call"> {
     }];
 }
 
-def SIR_LambdaOp : SIR_Op<"lambda"> {
-    let summary = "create a lambda with captured variables";
+// `%f = sir.closure { ... } %x %y` equals to
+// ```
+//  %f_l = sir.lambda { ... } cap_size=2
+//  %f = sir.bind %f_l (%x %y)
+// ```
+// this op cannot be used for recursive functions,
+// use `sir.lambda` and `sir.bind` instead
+def SIR_ClosureOp : SIR_Op<"closure"> {
+    let summary = "create a closure with an in-place block and captures";
 
     let arguments = (ins
       Variadic<SIR_Var>:$caps
@@ -139,11 +153,38 @@ def SIR_LambdaOp : SIR_Op<"lambda"> {
     }];
 }
 
-def SIR_HoleOp : SIR_Op<"hole"> {
-    let summary = "represents an unknown (hole) variable";
+def SIR_LambdaOp : SIR_Op<"lambda"> {
+    let summary = "create a lambda";
 
     let arguments = (ins
-      Builtin_StringAttr:$id
+      Builtin_IntegerAttr:$cap_size
+    );
+
+    let results = (outs
+      SIR_Lambda:$res
+    );
+
+    let regions = (region
+      SizedRegion<1>:$body
+    );
+
+    let assemblyFormat = [{
+      $body attr-dict
+    }];
+}
+
+def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
+    let summary = "create a closure from lambdas and captures";
+
+    let arguments = (ins
+      Variadic<SIR_Lambda>:$lambdas,
+      // lambda in captures means recursive functions,
+      // and all lambdas in $caps must be present in $lambdas
+      // e.g. sir.bind f f -> recursive
+      // e.g. sir.bind f x -> non-recursive
+      Variadic<AnyTypeOf<[SIR_Var, SIR_Lambda]>>:$caps,
+      // to split captures for each lambda
+      Builtin_ArrayAttr:$cap_sizes
     );
 
     let results = (outs
@@ -151,7 +192,24 @@ def SIR_HoleOp : SIR_Op<"hole"> {
     );
 
     let assemblyFormat = [{
-      attr-dict
+      $lambdas type($caps) $caps attr-dict
+    }];
+}
+
+def SIR_PrimOp : SIR_Op<"prim"> {
+    let summary = "call a primitive operation with arguments";
+
+    let arguments = (ins
+      Builtin_StringAttr:$op,
+      Variadic<SIR_Var>:$args
+    );
+
+    let results = (outs
+      SIR_Var:$res
+    );
+
+    let assemblyFormat = [{
+      $op `(` $args `)` attr-dict
     }];
 }
 
