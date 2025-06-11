@@ -12,4 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_subdirectory(sexprtosir)
+add_mlir_library(SExprToSIR
+    SExprToSIR.cpp
+    SExprToSIR.h
+
+    LINK_LIBS PUBLIC
+    MLIRIR
+    SExprOps
+    SIROps
+)

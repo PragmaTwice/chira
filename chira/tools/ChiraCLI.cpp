@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/conversion/sexprtosir/SExprToSIR.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/parser/Parser.h"
@@ -104,22 +105,34 @@ int main(int argc, char *argv[]) {
 
   auto module = parser.Module();
 
-  mlir::PassManager pm(module->getContext());
+  {
+    mlir::PassManager pm(module->getContext());
 
-  pm.addPass(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::createCSEPass());
-  pm.addPass(chira::sexpr::createDefineSyntaxConstructorPass());
-  pm.addPass(chira::sexpr::createMacroExpanderPass());
-  pm.addPass(mlir::createCanonicalizerPass());
-  pm.addPass(mlir::createCSEPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
+    pm.addPass(chira::sexpr::createDefineSyntaxConstructorPass());
+    pm.addPass(chira::sexpr::createMacroExpanderPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
 
-  if (mlir::failed(pm.run(module))) {
-    return 1;
+    if (mlir::failed(pm.run(module))) {
+      return 1;
+    }
   }
 
   if (MacroExpanderOnly) {
     os << chira::sexpr::Printer::Print(module, 0, MaxLineLength);
     return 0;
+  }
+
+  {
+    mlir::PassManager pm(module->getContext());
+
+    pm.addPass(chira::createSExprToSIRConversionPass());
+
+    if (mlir::failed(pm.run(module))) {
+      return 1;
+    }
   }
 
   module->print(os, flags);

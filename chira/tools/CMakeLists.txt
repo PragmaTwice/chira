@@ -20,5 +20,5 @@ target_link_libraries(chira-cli PUBLIC
     ChiraParser
     ChiraLLVMTarget
     SExprTransforms
-    SIROps # just for test
+    SExprToSIR
 )
