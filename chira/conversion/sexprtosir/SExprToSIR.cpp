@@ -13,7 +13,11 @@
 // limitations under the License.
 
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
+#include "chira/dialect/sexpr/SExprOps.h"
+#include "chira/dialect/sir/SIROps.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 
 namespace chira {
 
@@ -22,7 +26,194 @@ namespace {
 struct SExprToSIRConversionPass
     : public mlir::PassWrapper<SExprToSIRConversionPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
-  void runOnOperation() override{};
+  void runOnOperation() override {
+    auto module = getOperation();
+
+    sexpr::RootOp root;
+    module->walk([&](sexpr::RootOp op) { root = op; });
+
+    auto new_module = mlir::ModuleOp::create(module->getLoc());
+    mlir::OpBuilder builder(new_module.getRegion());
+
+    bool success = true;
+    std::map<llvm::StringRef, mlir::Value> global_scope;
+    for (auto e : root.getExprs()) {
+      if (!visitOp(e.getDefiningOp(), builder, global_scope)) {
+        success = false;
+      }
+    }
+
+    module.getRegion().takeBody(new_module.getRegion());
+    if (!success) {
+      signalPassFailure();
+    }
+  };
+
+  mlir::Value visitOp(mlir::Operation *op, mlir::OpBuilder &builder,
+                      std::map<llvm::StringRef, mlir::Value> &scope) {
+    if (auto s = llvm::dyn_cast<sexpr::SOp>(op)) {
+      return visitExpr(s, builder, scope);
+    } else if (auto id = llvm::dyn_cast<sexpr::IdOp>(op)) {
+      if (auto it = scope.find(id.getId().strref()); it != scope.end()) {
+        return it->second;
+      } else {
+        mlir::emitError(id.getLoc())
+            << "undefined identifier `" << id.getId() << "`";
+        return {};
+      }
+    } else if (auto str = llvm::dyn_cast<sexpr::StrOp>(op)) {
+      auto var_type = sir::VarType::get(&getContext());
+      return builder.create<sir::StrOp>(op->getLoc(), var_type, str.getStr());
+    } else if (auto num = llvm::dyn_cast<sexpr::NumOp>(op)) {
+      auto var_type = sir::VarType::get(&getContext());
+      auto val =
+          llvm::APFloat(llvm::APFloat::IEEEquad(), num.getNum().getValue());
+      auto attr =
+          mlir::FloatAttr::get(mlir::Float128Type::get(&getContext()), val);
+      return builder.create<sir::NumOp>(op->getLoc(), var_type, attr);
+    }
+
+    llvm_unreachable("unexpected operation type");
+  }
+
+  bool isPrimOp(llvm::StringRef id) {
+    return id == "+" || id == "-" || id == "*" || id == "/" || id == "=" ||
+           id == "<" || id == "<=" || id == ">" || id == ">=" ||
+           id == "display" || id == "newline";
+  }
+
+  mlir::Value visitExpr(sexpr::SOp expr, mlir::OpBuilder &builder,
+                        std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.empty()) {
+      mlir::emitError(expr.getLoc())
+          << "empty S-expression is not allowed here";
+      return {};
+    }
+
+    auto first = exprs[0].getDefiningOp();
+    if (auto opcode = llvm::dyn_cast<sexpr::IdOp>(first)) {
+      if (opcode.getId() == "define") {
+        return visitDefine(expr, builder, scope);
+      } else if (isPrimOp(opcode.getId())) {
+        return visitPrim(opcode.getId(), expr, builder, scope);
+      }
+    }
+
+    auto func = visitOp(first, builder, scope);
+    if (!func) {
+      return {};
+    }
+
+    std::vector<mlir::Value> operands;
+    for (auto e : exprs.drop_front(1)) {
+      if (auto v = visitOp(e.getDefiningOp(), builder, scope)) {
+        operands.push_back(v);
+      } else {
+        return {};
+      }
+    }
+
+    auto var_type = sir::VarType::get(&getContext());
+    return builder.create<sir::CallOp>(expr->getLoc(), var_type, func, operands,
+                                       nullptr);
+  }
+
+  mlir::Value visitDefine(sexpr::SOp expr, mlir::OpBuilder &builder,
+                          std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() != 3) {
+      mlir::emitError(expr.getLoc())
+          << "expected 2 arguments in (define <name> <value>)";
+      return {};
+    }
+
+    auto name_op = exprs[1].getDefiningOp();
+    if (auto name = llvm::dyn_cast<sexpr::IdOp>(name_op)) {
+      auto value = visitOp(exprs[2].getDefiningOp(), builder, scope);
+      if (!value) {
+        return {};
+      }
+
+      value.getDefiningOp()->setAttr("defined_name", name.getIdAttr());
+      scope.emplace(name.getId().strref(), value);
+      auto var_type = sir::VarType::get(&getContext());
+      return builder.create<sir::UnspecifiedOp>(expr.getLoc(), var_type);
+    } else if (auto names = llvm::dyn_cast<sexpr::SOp>(name_op)) {
+      if (names.getExprs().empty()) {
+        mlir::emitError(expr.getLoc()) << "<name> in (define <name> <value>) "
+                                          "should not be an empty S-expression";
+        return {};
+      }
+
+      std::vector<llvm::StringRef> name_and_args;
+      for (auto e : names.getExprs()) {
+        if (auto id = llvm::dyn_cast<sexpr::IdOp>(e.getDefiningOp())) {
+          name_and_args.push_back(id.getId().strref());
+        } else {
+          mlir::emitError(name_op->getLoc())
+              << "function name and arguments in (define ..) should be an "
+                 "identifier";
+          return {};
+        }
+      }
+
+      auto name = name_and_args.front();
+      auto args = llvm::ArrayRef(name_and_args).drop_front();
+
+      auto var_type = sir::VarType::get(&getContext());
+      auto lambda = builder.create<sir::ClosureOp>(expr->getLoc(), var_type,
+                                                   mlir::ValueRange{});
+      lambda->setAttr("defined_name",
+                      mlir::StringAttr::get(&getContext(), name));
+      scope.emplace(name, lambda);
+
+      auto ip = builder.saveInsertionPoint();
+
+      auto block = &lambda.getBody().emplaceBlock();
+      builder.setInsertionPointToStart(block);
+
+      auto new_scope = scope;
+      for (size_t i = 0; i < args.size(); ++i) {
+        auto arg =
+            block->addArgument(var_type, names.getExprs()[i + 1].getLoc());
+        new_scope.emplace(args[i], arg);
+      }
+
+      auto body = exprs[2].getDefiningOp();
+      auto ret = visitOp(body, builder, new_scope);
+      if (!ret) {
+        return {};
+      }
+      builder.create<sir::YieldOp>(body->getLoc(), ret);
+
+      builder.restoreInsertionPoint(ip);
+      return lambda;
+    } else {
+      mlir::emitError(name_op->getLoc())
+          << "<name> in (define <name> <value>) should be an identifier or "
+             "S-expression";
+      return {};
+    }
+  }
+
+  mlir::Value visitPrim(mlir::StringAttr id, sexpr::SOp expr,
+                        mlir::OpBuilder &builder,
+                        std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+
+    std::vector<mlir::Value> operands;
+    for (auto e : exprs.drop_front(1)) {
+      if (auto v = visitOp(e.getDefiningOp(), builder, scope)) {
+        operands.emplace_back(v);
+      } else {
+        return {};
+      }
+    }
+
+    auto var_type = sir::VarType::get(&getContext());
+    return builder.create<sir::PrimOp>(expr->getLoc(), var_type, id, operands);
+  }
 };
 
 } // namespace

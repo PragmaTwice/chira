@@ -16,6 +16,7 @@
 #define CHIRA_PARSER_PARSER
 
 #include "chira/dialect/sexpr/SExprOps.h"
+#include "chira/dialect/sir/SIROps.h"
 #include "chira/parser/Tokenizer.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -36,6 +37,7 @@ public:
       : module(mlir::ModuleOp::create(mlir::UnknownLoc::get(&ctx))),
         builder(module.getBodyRegion()), input(std::move(input)) {
     ctx.loadDialect<sexpr::SExprDialect>();
+    ctx.loadDialect<sir::SIRDialect>();
   }
 
   mlir::ModuleOp Module() { return module; }

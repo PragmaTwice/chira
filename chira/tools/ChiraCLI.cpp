@@ -129,6 +129,8 @@ int main(int argc, char *argv[]) {
     mlir::PassManager pm(module->getContext());
 
     pm.addPass(chira::createSExprToSIRConversionPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;

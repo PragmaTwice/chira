@@ -38,7 +38,7 @@ class SExpr_Op<string mnemonic, list<Trait> traits = []> :
   let extraClassDeclaration = "";
 }
 
-def SExpr_SOp : SExpr_Op<"s", [Pure]> {
+def SExpr_SOp : SExpr_Op<"s"> {
   let summary = "represents an S-expression";
 
   let arguments = (ins
@@ -70,7 +70,7 @@ def SExpr_RootOp : SExpr_Op<"root"> {
   }];
 }
 
-def SExpr_IdOp : SExpr_Op<"id", [Pure]> {
+def SExpr_IdOp : SExpr_Op<"id"> {
   let summary = "represents an identifier";
 
   let arguments = (ins
@@ -86,7 +86,7 @@ def SExpr_IdOp : SExpr_Op<"id", [Pure]> {
   }];
 }
 
-def SExpr_NumOp : SExpr_Op<"num", [Pure]> {
+def SExpr_NumOp : SExpr_Op<"num"> {
   let summary = "represents a number literal";
 
   let arguments = (ins
@@ -102,7 +102,7 @@ def SExpr_NumOp : SExpr_Op<"num", [Pure]> {
   }];
 }
 
-def SExpr_StrOp : SExpr_Op<"str", [Pure]> {
+def SExpr_StrOp : SExpr_Op<"str"> {
   let summary = "represents a string literal";
 
   let arguments = (ins

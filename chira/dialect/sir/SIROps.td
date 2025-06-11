@@ -18,6 +18,7 @@
 include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributes.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def SIR_Dialect : Dialect {
   let name = "sir";
@@ -76,7 +77,7 @@ def SIR_StrOp : SIR_Op<"str"> {
   }];
 }
 
-def SIR_YieldOp : SIR_Op<"yield"> {
+def SIR_YieldOp : SIR_Op<"yield", [Terminator]> {
   let summary = "yield a variable and terminate the current block";
 
   let arguments = (ins
@@ -211,6 +212,18 @@ def SIR_PrimOp : SIR_Op<"prim"> {
 
     let assemblyFormat = [{
       $op `(` $args `)` attr-dict
+    }];
+}
+
+def SIR_UnspecifiedOp : SIR_Op<"unspec", [Pure]> {
+    let summary = "construct a variable with unspecified value";
+
+    let results = (outs
+      SIR_Var:$res
+    );
+
+    let assemblyFormat = [{
+      attr-dict
     }];
 }
 
