@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CHIRA_DIALECT_SEXPR_SEXPROPS
-#define CHIRA_DIALECT_SEXPR_SEXPROPS
+#ifndef CHIRA_DIALECT_SIR_SIROPS
+#define CHIRA_DIALECT_SIR_SIROPS
 
 #include "mlir/Bytecode/BytecodeOpInterface.h"
 #include "mlir/IR/Attributes.h"
@@ -34,4 +34,4 @@
 #define GET_OP_CLASSES
 #include "chira/dialect/sir/SIROps.h.inc"
 
-#endif // CHIRA_DIALECT_SEXPR_SEXPROPS
+#endif // CHIRA_DIALECT_SIR_SIROPS
