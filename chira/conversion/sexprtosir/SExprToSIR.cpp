@@ -288,7 +288,7 @@ struct SExprToSIRConversionPass
     }
   }
 
-  mlir::Value visitPrim(mlir::StringAttr id, sexpr::SOp expr,
+  mlir::Value visitPrim(llvm::StringRef id, sexpr::SOp expr,
                         mlir::OpBuilder &builder,
                         std::map<llvm::StringRef, mlir::Value> &scope) {
     auto exprs = expr.getExprs();
@@ -303,7 +303,9 @@ struct SExprToSIRConversionPass
     }
 
     auto var_type = sir::VarType::get(&getContext());
-    return builder.create<sir::PrimOp>(expr->getLoc(), var_type, id, operands);
+    return builder.create<sir::PrimOp>(
+        expr->getLoc(), var_type,
+        mlir::SymbolRefAttr::get(builder.getContext(), id), operands);
   }
 
   mlir::Value visitLambda(sexpr::SOp expr, mlir::OpBuilder &builder,

@@ -90,42 +90,42 @@ def SIR_YieldOp : SIR_Op<"yield", [Terminator]> {
 }
 
 def SIR_IfOp : SIR_Op<"if"> {
-    let summary = "conditional branching";
+  let summary = "conditional branching";
 
-    let arguments = (ins
-      SIR_Var:$cond
-    );
+  let arguments = (ins
+    SIR_Var:$cond
+  );
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let regions = (region
-      SizedRegion<1>:$then,
-      SizedRegion<1>:$else
-    );
+  let regions = (region
+    SizedRegion<1>:$then,
+    SizedRegion<1>:$else
+  );
 
-    let assemblyFormat = [{
-      $cond $then `else` $else attr-dict
-    }];
+  let assemblyFormat = [{
+    $cond $then `else` $else attr-dict
+  }];
 }
 
 def SIR_CallOp : SIR_Op<"call"> {
-    let summary = "call a function with arguments";
+  let summary = "call a function with arguments";
 
-    let arguments = (ins
-      SIR_Var:$callee,
-      Variadic<SIR_Var>:$args,
-      OptionalAttr<Builtin_UnitAttr>:$tail
-    );
+  let arguments = (ins
+    SIR_Var:$callee,
+    Variadic<SIR_Var>:$args,
+    OptionalAttr<Builtin_UnitAttr>:$tail
+  );
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let assemblyFormat = [{
-      $callee `(` $args `)` attr-dict
-    }];
+  let assemblyFormat = [{
+    $callee `(` $args `)` attr-dict
+  }];
 }
 
 // `%f = sir.closure { ... } %x %y` equals to
@@ -136,95 +136,108 @@ def SIR_CallOp : SIR_Op<"call"> {
 // this op cannot be used for recursive functions,
 // use `sir.lambda` and `sir.bind` instead
 def SIR_ClosureOp : SIR_Op<"closure"> {
-    let summary = "create a closure with an in-place block and captures";
+  let summary = "create a closure with an in-place block and captures";
 
-    let arguments = (ins
-      Variadic<SIR_Var>:$caps
-    );
+  let arguments = (ins
+    Variadic<SIR_Var>:$caps
+  );
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let regions = (region
-      SizedRegion<1>:$body
-    );
+  let regions = (region
+    SizedRegion<1>:$body
+  );
 
-    let assemblyFormat = [{
-      $caps $body attr-dict
-    }];
+  let assemblyFormat = [{
+    $caps $body attr-dict
+  }];
 }
 
 def SIR_LambdaOp : SIR_Op<"lambda"> {
-    let summary = "create a lambda";
+  let summary = "create a lambda";
 
-    let arguments = (ins
-      Builtin_IntegerAttr:$cap_size
-    );
+  let arguments = (ins
+    Builtin_IntegerAttr:$cap_size
+  );
 
-    let results = (outs
-      SIR_Lambda:$res
-    );
+  let results = (outs
+    SIR_Lambda:$res
+  );
 
-    let regions = (region
-      SizedRegion<1>:$body
-    );
+  let regions = (region
+    SizedRegion<1>:$body
+  );
 
-    let assemblyFormat = [{
-      $body attr-dict
-    }];
+  let assemblyFormat = [{
+    $body attr-dict
+  }];
 }
 
 def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
-    let summary = "create a closure from lambdas and captures";
+  let summary = "create a closure from lambdas and captures";
 
-    let arguments = (ins
-      Variadic<SIR_Lambda>:$lambdas,
-      // lambda in captures means recursive functions,
-      // and all lambdas in $caps must be present in $lambdas
-      // e.g. sir.bind f f -> recursive
-      // e.g. sir.bind f x -> non-recursive
-      Variadic<AnyTypeOf<[SIR_Var, SIR_Lambda]>>:$caps,
-      // to split captures for each lambda
-      Builtin_ArrayAttr:$cap_sizes
-    );
+  let arguments = (ins
+    Variadic<SIR_Lambda>:$lambdas,
+    // lambda in captures means recursive functions,
+    // and all lambdas in $caps must be present in $lambdas
+    // e.g. sir.bind f f -> recursive
+    // e.g. sir.bind f x -> non-recursive
+    Variadic<AnyTypeOf<[SIR_Var, SIR_Lambda]>>:$caps,
+    // to split captures for each lambda
+    Builtin_ArrayAttr:$cap_sizes
+  );
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let assemblyFormat = [{
-      $lambdas type($caps) $caps attr-dict
-    }];
+  let assemblyFormat = [{
+    $lambdas type($caps) $caps attr-dict
+  }];
 }
 
 def SIR_PrimOp : SIR_Op<"prim"> {
-    let summary = "call a primitive operation with arguments";
+  let summary = "call a primitive operation with arguments";
 
-    let arguments = (ins
-      Builtin_StringAttr:$op,
-      Variadic<SIR_Var>:$args
-    );
+  let arguments = (ins
+    Builtin_SymbolRefAttr:$op,
+    Variadic<SIR_Var>:$args
+  );
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let assemblyFormat = [{
-      $op `(` $args `)` attr-dict
-    }];
+  let assemblyFormat = [{
+    $op `(` $args `)` attr-dict
+  }];
 }
 
 def SIR_UnspecifiedOp : SIR_Op<"unspec", [Pure]> {
-    let summary = "construct a variable with unspecified value";
+  let summary = "construct a variable with unspecified value";
 
-    let results = (outs
-      SIR_Var:$res
-    );
+  let results = (outs
+    SIR_Var:$res
+  );
 
-    let assemblyFormat = [{
-      attr-dict
-    }];
+  let assemblyFormat = [{
+    attr-dict
+  }];
+}
+
+def SIR_SetOp : SIR_Op<"set"> {
+  let summary = "set a variable to a new value";
+
+  let arguments = (ins
+    SIR_Var:$var,
+    SIR_Var:$value
+  );
+
+  let assemblyFormat = [{
+    $var `=` $value attr-dict
+  }];
 }
 
 #endif
