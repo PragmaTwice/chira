@@ -18,6 +18,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Value.h"
 
 namespace chira {
 
@@ -57,8 +58,7 @@ struct SExprToSIRConversionPass
       if (auto it = scope.find(id.getId().strref()); it != scope.end()) {
         return it->second;
       } else {
-        mlir::emitError(id.getLoc())
-            << "undefined identifier `" << id.getId() << "`";
+        mlir::emitError(id.getLoc()) << "undefined identifier " << id.getId();
         return {};
       }
     } else if (auto str = llvm::dyn_cast<sexpr::StrOp>(op)) {
@@ -97,9 +97,88 @@ struct SExprToSIRConversionPass
         return visitDefine(expr, builder, scope);
       } else if (isPrimOp(opcode.getId())) {
         return visitPrim(opcode.getId(), expr, builder, scope);
+      } else if (opcode.getId() == "if") {
+        return visitIf(expr, builder, scope);
+      } else if (opcode.getId() == "begin") {
+        return visitBegin(expr, builder, scope);
       }
     }
 
+    return visitCall(expr, builder, scope);
+  }
+
+  mlir::Value visitBegin(sexpr::SOp expr, mlir::OpBuilder &builder,
+                         std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() < 2) {
+      mlir::emitError(expr.getLoc())
+          << "expected more than 1 argument in (begin <expr>..)";
+      return {};
+    }
+
+    auto new_scope = scope;
+
+    mlir::Value last;
+    for (auto e : exprs.drop_front(1)) {
+      last = visitOp(e.getDefiningOp(), builder, new_scope);
+      if (!last) {
+        return {};
+      }
+    }
+
+    return last;
+  }
+
+  mlir::Value visitIf(sexpr::SOp expr, mlir::OpBuilder &builder,
+                      std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() < 3 || exprs.size() > 4) {
+      mlir::emitError(expr.getLoc())
+          << "expected 2 or 3 arguments in (if <cond> <then> [<else>])";
+      return {};
+    }
+
+    auto var_type = sir::VarType::get(&getContext());
+    auto cond = visitOp(exprs[1].getDefiningOp(), builder, scope);
+    if (!cond) {
+      return {};
+    }
+    auto if_op = builder.create<sir::IfOp>(expr->getLoc(), var_type, cond);
+
+    auto ip = builder.saveInsertionPoint();
+    auto then_block = &if_op.getThen().emplaceBlock();
+    builder.setInsertionPointToStart(then_block);
+
+    auto then = visitOp(exprs[2].getDefiningOp(), builder, scope);
+    if (!then) {
+      return {};
+    }
+
+    builder.create<sir::YieldOp>(exprs[2].getLoc(), then);
+
+    auto else_block = &if_op.getElse().emplaceBlock();
+    builder.setInsertionPointToStart(else_block);
+    if (exprs.size() == 4) {
+      auto else_val = visitOp(exprs[3].getDefiningOp(), builder, scope);
+      if (!else_val) {
+        return {};
+      }
+      builder.create<sir::YieldOp>(exprs[3].getLoc(), else_val);
+    } else {
+      auto unspec =
+          builder.create<sir::UnspecifiedOp>(expr->getLoc(), var_type);
+      builder.create<sir::YieldOp>(expr->getLoc(), unspec);
+    }
+
+    builder.restoreInsertionPoint(ip);
+    return if_op;
+  }
+
+  mlir::Value visitCall(sexpr::SOp expr, mlir::OpBuilder &builder,
+                        std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+
+    auto first = expr.getExprs().front().getDefiningOp();
     auto func = visitOp(first, builder, scope);
     if (!func) {
       return {};
@@ -122,14 +201,20 @@ struct SExprToSIRConversionPass
   mlir::Value visitDefine(sexpr::SOp expr, mlir::OpBuilder &builder,
                           std::map<llvm::StringRef, mlir::Value> &scope) {
     auto exprs = expr.getExprs();
-    if (exprs.size() != 3) {
+    if (exprs.size() < 3) {
       mlir::emitError(expr.getLoc())
-          << "expected 2 arguments in (define <name> <value>)";
+          << "expected more than 2 arguments in (define <name> <value>..)";
       return {};
     }
 
     auto name_op = exprs[1].getDefiningOp();
     if (auto name = llvm::dyn_cast<sexpr::IdOp>(name_op)) {
+      if (exprs.size() != 3) {
+        mlir::emitError(expr.getLoc())
+            << "expected 2 arguments in (define <name> <value>)";
+        return {};
+      }
+
       auto value = visitOp(exprs[2].getDefiningOp(), builder, scope);
       if (!value) {
         return {};
@@ -180,14 +265,18 @@ struct SExprToSIRConversionPass
         new_scope.emplace(args[i], arg);
       }
 
-      auto body = exprs[2].getDefiningOp();
-      auto ret = visitOp(body, builder, new_scope);
-      if (!ret) {
-        return {};
+      mlir::Value ret;
+      for (auto e : exprs.drop_front(2)) {
+        if (auto v = visitOp(e.getDefiningOp(), builder, new_scope)) {
+          ret = v;
+        } else {
+          return {};
+        }
       }
-      builder.create<sir::YieldOp>(body->getLoc(), ret);
 
+      builder.create<sir::YieldOp>(exprs.back().getLoc(), ret);
       builder.restoreInsertionPoint(ip);
+
       return lambda;
     } else {
       mlir::emitError(name_op->getLoc())
