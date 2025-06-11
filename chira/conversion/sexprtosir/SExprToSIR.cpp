@@ -223,7 +223,7 @@ struct SExprToSIRConversionPass
       }
 
       value.getDefiningOp()->setAttr("defined_name", name.getIdAttr());
-      scope.emplace(name.getId().strref(), value);
+      scope.insert_or_assign(name.getId().strref(), value);
       auto var_type = sir::VarType::get(&getContext());
       return builder.create<sir::UnspecifiedOp>(expr.getLoc(), var_type);
     } else if (auto names = llvm::dyn_cast<sexpr::SOp>(name_op)) {
@@ -253,7 +253,7 @@ struct SExprToSIRConversionPass
                                                    mlir::ValueRange{});
       lambda->setAttr("defined_name",
                       mlir::StringAttr::get(&getContext(), name));
-      scope.emplace(name, lambda);
+      scope.insert_or_assign(name, lambda);
 
       auto ip = builder.saveInsertionPoint();
 
@@ -264,7 +264,7 @@ struct SExprToSIRConversionPass
       for (size_t i = 0; i < args.size(); ++i) {
         auto arg =
             block->addArgument(var_type, names.getExprs()[i + 1].getLoc());
-        new_scope.emplace(args[i], arg);
+        new_scope.insert_or_assign(args[i], arg);
       }
 
       mlir::Value ret;
@@ -346,7 +346,7 @@ struct SExprToSIRConversionPass
     auto new_scope = scope;
     for (size_t i = 0; i < args.size(); ++i) {
       auto arg = block->addArgument(var_type, args[i].getLoc());
-      new_scope.emplace(arg_names[i], arg);
+      new_scope.insert_or_assign(arg_names[i], arg);
     }
 
     mlir::Value ret;
