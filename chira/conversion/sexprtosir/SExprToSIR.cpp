@@ -101,6 +101,8 @@ struct SExprToSIRConversionPass
         return visitIf(expr, builder, scope);
       } else if (opcode.getId() == "begin") {
         return visitBegin(expr, builder, scope);
+      } else if (opcode.getId() == "lambda") {
+        return visitLambda(expr, builder, scope);
       }
     }
 
@@ -302,6 +304,64 @@ struct SExprToSIRConversionPass
 
     auto var_type = sir::VarType::get(&getContext());
     return builder.create<sir::PrimOp>(expr->getLoc(), var_type, id, operands);
+  }
+
+  mlir::Value visitLambda(sexpr::SOp expr, mlir::OpBuilder &builder,
+                          std::map<llvm::StringRef, mlir::Value> &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() < 2) {
+      mlir::emitError(expr.getLoc())
+          << "expected more than 1 argument in (lambda <args> <body>)";
+      return {};
+    }
+
+    auto args_op = exprs[1].getDefiningOp();
+    if (!llvm::isa<sexpr::SOp>(args_op)) {
+      mlir::emitError(args_op->getLoc())
+          << "expected S-expression for arguments in (lambda <args> <body>)";
+      return {};
+    }
+
+    auto args = llvm::cast<sexpr::SOp>(args_op).getExprs();
+    std::vector<llvm::StringRef> arg_names;
+    for (auto arg : args) {
+      if (auto id = llvm::dyn_cast<sexpr::IdOp>(arg.getDefiningOp())) {
+        arg_names.push_back(id.getId().strref());
+      } else {
+        mlir::emitError(arg.getLoc()) << "expected identifier for each "
+                                         "argument in (lambda <args> <body>)";
+        return {};
+      }
+    }
+
+    auto var_type = sir::VarType::get(&getContext());
+    auto lambda = builder.create<sir::ClosureOp>(expr->getLoc(), var_type,
+                                                 mlir::ValueRange{});
+
+    auto ip = builder.saveInsertionPoint();
+
+    auto block = &lambda.getBody().emplaceBlock();
+    builder.setInsertionPointToStart(block);
+
+    auto new_scope = scope;
+    for (size_t i = 0; i < args.size(); ++i) {
+      auto arg = block->addArgument(var_type, args[i].getLoc());
+      new_scope.emplace(arg_names[i], arg);
+    }
+
+    mlir::Value ret;
+    for (auto e : exprs.drop_front(2)) {
+      if (auto v = visitOp(e.getDefiningOp(), builder, new_scope)) {
+        ret = v;
+      } else {
+        return {};
+      }
+    }
+
+    builder.create<sir::YieldOp>(exprs.back().getLoc(), ret);
+    builder.restoreInsertionPoint(ip);
+
+    return lambda;
   }
 };
 
