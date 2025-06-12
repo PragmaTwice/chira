@@ -159,7 +159,10 @@ def SIR_LambdaOp : SIR_Op<"lambda"> {
   let summary = "create a lambda";
 
   let arguments = (ins
-    Builtin_IntegerAttr:$cap_size
+    // $param_size + capture size = size of block arguments,
+    // e.g. for `sir.lambda { x, y, z: ... } param_size=2`,
+    // params are `x` and `y`, and `z` is a captured variable
+    Builtin_IntegerAttr:$param_size
   );
 
   let results = (outs
@@ -183,7 +186,7 @@ def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
     // lambda in captures means recursive functions,
     // and all lambdas in $caps must be present in $lambdas
     // e.g. sir.bind f f -> recursive
-    // e.g. sir.bind f x -> non-recursive
+    //      sir.bind f x -> non-recursive
     Variadic<AnyTypeOf<[SIR_Var, SIR_Lambda]>>:$caps,
     // to split captures for each lambda
     Builtin_ArrayAttr:$cap_sizes

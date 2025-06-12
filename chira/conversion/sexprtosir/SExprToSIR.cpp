@@ -190,10 +190,110 @@ struct SExprToSIRConversionPass
         return visitBegin(expr, builder, scope);
       } else if (opcode.getId() == "lambda") {
         return visitLambda(expr, builder, scope);
+      } else if (opcode.getId() == "set!") {
+        return visitSet(expr, builder, scope);
+      } else if (opcode.getId() == "let") {
+        return visitLet(expr, builder, scope);
       }
     }
 
     return visitCall(expr, builder, scope);
+  }
+
+  mlir::Value visitSet(sexpr::SOp expr, mlir::OpBuilder &builder,
+                       LexScope &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() != 3) {
+      mlir::emitError(expr.getLoc())
+          << "expected 2 arguments in (set! <name> <value>)";
+      return {};
+    }
+
+    auto name_op = exprs[1].getDefiningOp();
+    if (auto name = llvm::dyn_cast<sexpr::IdOp>(name_op)) {
+      auto var = visitOp(name, builder, scope);
+      if (!var) {
+        return {};
+      }
+
+      auto value = visitOp(exprs[2].getDefiningOp(), builder, scope);
+      if (!value) {
+        return {};
+      }
+
+      builder.create<sir::SetOp>(expr->getLoc(), var, value);
+      auto unspec = builder.create<sir::UnspecifiedOp>(
+          expr->getLoc(), sir::VarType::get(&getContext()));
+      return unspec;
+    } else {
+      mlir::emitError(name_op->getLoc())
+          << "expected identifier for the first operand of (set!)";
+      return {};
+    }
+  }
+
+  mlir::Value visitLet(sexpr::SOp expr, mlir::OpBuilder &builder,
+                       LexScope &scope) {
+    auto exprs = expr.getExprs();
+    if (exprs.size() < 3) {
+      mlir::emitError(expr.getLoc())
+          << "expected at least 2 arguments in (let <bindings> <body>..)";
+      return {};
+    }
+
+    auto bindings = llvm::dyn_cast<sexpr::SOp>(exprs[1].getDefiningOp());
+    if (!bindings) {
+      mlir::emitError(exprs[1].getLoc())
+          << "expected S-expression for the bindings in (let <bindings> "
+             "<body>)";
+      return {};
+    }
+
+    if (bindings.getExprs().empty()) {
+      mlir::emitError(exprs[1].getLoc())
+          << "expected non-empty S-expression for the bindings in (let "
+             "<bindings> <body>)";
+      return {};
+    }
+
+    LexScope new_scope(scope, LexScope::Local, builder);
+    for (auto binding : bindings.getExprs()) {
+      auto binding_op = llvm::dyn_cast<sexpr::SOp>(binding.getDefiningOp());
+      if (!binding_op || binding_op.getExprs().size() != 2) {
+        mlir::emitError(binding.getLoc())
+            << "expected (<name> <value>) for each binding in (let <bindings> "
+               "<body>)";
+        return {};
+      }
+
+      auto name_op =
+          llvm::dyn_cast<sexpr::IdOp>(binding_op.getExprs()[0].getDefiningOp());
+      if (!name_op) {
+        mlir::emitError(binding_op.getExprs()[0].getLoc())
+            << "expected identifier for the name in (let ((<name> <value>)..) "
+               "<body>)";
+        return {};
+      }
+
+      auto value =
+          visitOp(binding_op.getExprs()[1].getDefiningOp(), builder, new_scope);
+      if (!value) {
+        return {};
+      }
+
+      value.getDefiningOp()->setAttr("defined_name", name_op.getIdAttr());
+      new_scope.set(name_op.getId().strref(), value);
+    }
+
+    mlir::Value last;
+    for (auto body_expr : exprs.drop_front(2)) {
+      last = visitOp(body_expr.getDefiningOp(), builder, new_scope);
+      if (!last) {
+        return {};
+      }
+    }
+
+    return last;
   }
 
   mlir::Value visitBegin(sexpr::SOp expr, mlir::OpBuilder &builder,
