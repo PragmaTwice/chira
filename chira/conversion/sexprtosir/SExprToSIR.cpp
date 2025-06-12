@@ -19,10 +19,33 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace chira {
 
 namespace {
+
+struct LexScope {
+  std::map<llvm::StringRef, mlir::Value> current_scope;
+  LexScope *parent_scope;
+
+  LexScope(LexScope *parent = nullptr) : parent_scope(parent) {}
+  LexScope(const LexScope &) = delete;
+
+  mlir::Value get(llvm::StringRef id) {
+    if (auto it = current_scope.find(id); it != current_scope.end()) {
+      return it->second;
+    } else if (parent_scope) {
+      return parent_scope->get(id);
+    }
+
+    return {};
+  }
+
+  void set(llvm::StringRef id, mlir::Value value) { current_scope[id] = value; }
+
+  bool root() const { return parent_scope == nullptr; }
+};
 
 struct SExprToSIRConversionPass
     : public mlir::PassWrapper<SExprToSIRConversionPass,
@@ -37,7 +60,7 @@ struct SExprToSIRConversionPass
     mlir::OpBuilder builder(new_module.getRegion());
 
     bool success = true;
-    std::map<llvm::StringRef, mlir::Value> global_scope;
+    LexScope global_scope;
     for (auto e : root.getExprs()) {
       if (!visitOp(e.getDefiningOp(), builder, global_scope)) {
         success = false;
@@ -51,12 +74,12 @@ struct SExprToSIRConversionPass
   };
 
   mlir::Value visitOp(mlir::Operation *op, mlir::OpBuilder &builder,
-                      std::map<llvm::StringRef, mlir::Value> &scope) {
+                      LexScope &scope) {
     if (auto s = llvm::dyn_cast<sexpr::SOp>(op)) {
       return visitExpr(s, builder, scope);
     } else if (auto id = llvm::dyn_cast<sexpr::IdOp>(op)) {
-      if (auto it = scope.find(id.getId().strref()); it != scope.end()) {
-        return it->second;
+      if (auto v = scope.get(id.getId().strref())) {
+        return v;
       } else {
         mlir::emitError(id.getLoc()) << "undefined identifier " << id.getId();
         return {};
@@ -83,7 +106,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitExpr(sexpr::SOp expr, mlir::OpBuilder &builder,
-                        std::map<llvm::StringRef, mlir::Value> &scope) {
+                        LexScope &scope) {
     auto exprs = expr.getExprs();
     if (exprs.empty()) {
       mlir::emitError(expr.getLoc())
@@ -110,7 +133,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitBegin(sexpr::SOp expr, mlir::OpBuilder &builder,
-                         std::map<llvm::StringRef, mlir::Value> &scope) {
+                         LexScope &scope) {
     auto exprs = expr.getExprs();
     if (exprs.size() < 2) {
       mlir::emitError(expr.getLoc())
@@ -118,7 +141,7 @@ struct SExprToSIRConversionPass
       return {};
     }
 
-    auto new_scope = scope;
+    LexScope new_scope(&scope);
 
     mlir::Value last;
     for (auto e : exprs.drop_front(1)) {
@@ -132,7 +155,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitIf(sexpr::SOp expr, mlir::OpBuilder &builder,
-                      std::map<llvm::StringRef, mlir::Value> &scope) {
+                      LexScope &scope) {
     auto exprs = expr.getExprs();
     if (exprs.size() < 3 || exprs.size() > 4) {
       mlir::emitError(expr.getLoc())
@@ -177,7 +200,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitCall(sexpr::SOp expr, mlir::OpBuilder &builder,
-                        std::map<llvm::StringRef, mlir::Value> &scope) {
+                        LexScope &scope) {
     auto exprs = expr.getExprs();
 
     auto first = expr.getExprs().front().getDefiningOp();
@@ -201,7 +224,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitDefine(sexpr::SOp expr, mlir::OpBuilder &builder,
-                          std::map<llvm::StringRef, mlir::Value> &scope) {
+                          LexScope &scope) {
     auto exprs = expr.getExprs();
     if (exprs.size() < 3) {
       mlir::emitError(expr.getLoc())
@@ -223,7 +246,7 @@ struct SExprToSIRConversionPass
       }
 
       value.getDefiningOp()->setAttr("defined_name", name.getIdAttr());
-      scope.insert_or_assign(name.getId().strref(), value);
+      scope.set(name.getId().strref(), value);
       auto var_type = sir::VarType::get(&getContext());
       return builder.create<sir::UnspecifiedOp>(expr.getLoc(), var_type);
     } else if (auto names = llvm::dyn_cast<sexpr::SOp>(name_op)) {
@@ -253,18 +276,18 @@ struct SExprToSIRConversionPass
                                                    mlir::ValueRange{});
       lambda->setAttr("defined_name",
                       mlir::StringAttr::get(&getContext(), name));
-      scope.insert_or_assign(name, lambda);
+      scope.set(name, lambda);
 
       auto ip = builder.saveInsertionPoint();
 
       auto block = &lambda.getBody().emplaceBlock();
       builder.setInsertionPointToStart(block);
 
-      auto new_scope = scope;
+      LexScope new_scope(&scope);
       for (size_t i = 0; i < args.size(); ++i) {
         auto arg =
             block->addArgument(var_type, names.getExprs()[i + 1].getLoc());
-        new_scope.insert_or_assign(args[i], arg);
+        new_scope.set(args[i], arg);
       }
 
       mlir::Value ret;
@@ -289,8 +312,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitPrim(llvm::StringRef id, sexpr::SOp expr,
-                        mlir::OpBuilder &builder,
-                        std::map<llvm::StringRef, mlir::Value> &scope) {
+                        mlir::OpBuilder &builder, LexScope &scope) {
     auto exprs = expr.getExprs();
 
     std::vector<mlir::Value> operands;
@@ -309,7 +331,7 @@ struct SExprToSIRConversionPass
   }
 
   mlir::Value visitLambda(sexpr::SOp expr, mlir::OpBuilder &builder,
-                          std::map<llvm::StringRef, mlir::Value> &scope) {
+                          LexScope &scope) {
     auto exprs = expr.getExprs();
     if (exprs.size() < 2) {
       mlir::emitError(expr.getLoc())
@@ -345,10 +367,10 @@ struct SExprToSIRConversionPass
     auto block = &lambda.getBody().emplaceBlock();
     builder.setInsertionPointToStart(block);
 
-    auto new_scope = scope;
+    LexScope new_scope(&scope);
     for (size_t i = 0; i < args.size(); ++i) {
       auto arg = block->addArgument(var_type, args[i].getLoc());
-      new_scope.insert_or_assign(arg_names[i], arg);
+      new_scope.set(arg_names[i], arg);
     }
 
     mlir::Value ret;
