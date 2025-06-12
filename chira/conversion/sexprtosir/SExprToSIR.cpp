@@ -163,10 +163,17 @@ struct SExprToSIRConversionPass
     llvm_unreachable("unexpected operation type");
   }
 
-  bool isPrimOp(llvm::StringRef id) {
+  bool isArithPrimOp(llvm::StringRef id) {
     return id == "+" || id == "-" || id == "*" || id == "/" || id == "=" ||
-           id == "<" || id == "<=" || id == ">" || id == ">=" ||
-           id == "display" || id == "newline";
+           id == "<" || id == "<=" || id == ">" || id == ">=";
+  }
+
+  bool isIOPrimOp(llvm::StringRef id) {
+    return id == "display" || id == "newline";
+  }
+
+  bool isPrimOp(llvm::StringRef id) {
+    return isArithPrimOp(id) || isIOPrimOp(id);
   }
 
   mlir::Value visitExpr(sexpr::SOp expr, mlir::OpBuilder &builder,
@@ -489,9 +496,16 @@ struct SExprToSIRConversionPass
     }
 
     auto var_type = sir::VarType::get(&getContext());
-    return builder.create<sir::PrimOp>(
-        expr->getLoc(), var_type,
-        mlir::SymbolRefAttr::get(builder.getContext(), id), operands);
+    auto symbol = mlir::SymbolRefAttr::get(builder.getContext(), id);
+    if (isArithPrimOp(id)) {
+      return builder.create<sir::ArithPrimOp>(expr->getLoc(), var_type, symbol,
+                                              operands);
+    } else if (isIOPrimOp(id)) {
+      return builder.create<sir::IOPrimOp>(expr->getLoc(), var_type, symbol,
+                                           operands);
+    }
+
+    llvm_unreachable("unexpected primitive operation");
   }
 
   mlir::Value visitLambda(sexpr::SOp expr, mlir::OpBuilder &builder,

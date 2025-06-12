@@ -201,8 +201,25 @@ def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
   }];
 }
 
-def SIR_PrimOp : SIR_Op<"prim"> {
-  let summary = "call a primitive operation with arguments";
+def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
+  let summary = "call an arithmetic primitive operation with arguments";
+
+  let arguments = (ins
+    Builtin_SymbolRefAttr:$op,
+    Variadic<SIR_Var>:$args
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+
+  let assemblyFormat = [{
+    $op `(` $args `)` attr-dict
+  }];
+}
+
+def SIR_IOPrimOp : SIR_Op<"io_prim"> {
+  let summary = "call an IO primitive operation with arguments";
 
   let arguments = (ins
     Builtin_SymbolRefAttr:$op,
