@@ -15,36 +15,100 @@
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
 #include "chira/dialect/sexpr/SExprOps.h"
 #include "chira/dialect/sir/SIROps.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace chira {
 
 namespace {
 
 struct LexScope {
-  std::map<llvm::StringRef, mlir::Value> current_scope;
-  LexScope *parent_scope;
+  enum Kind { Global, Local, Closure };
 
-  LexScope(LexScope *parent = nullptr) : parent_scope(parent) {}
+  std::map<llvm::StringRef, mlir::Value> current_scope;
+  LexScope *parent_scope = nullptr;
+  Kind scope_kind = Global;
+  mlir::OpBuilder &builder;
+  mlir::Block *closure_block = nullptr;
+
+  LexScope(LexScope &parent, Kind kind, mlir::OpBuilder &builder,
+           mlir::Block *closure_block = nullptr)
+      : parent_scope(&parent), scope_kind(kind), builder(builder),
+        closure_block(closure_block) {
+    if (scope_kind == Closure) {
+      assert(closure_block &&
+             "closure block must be provided for closure scope");
+    }
+  }
+  LexScope(mlir::OpBuilder &builder) : builder(builder) {}
   LexScope(const LexScope &) = delete;
 
   mlir::Value get(llvm::StringRef id) {
-    if (auto it = current_scope.find(id); it != current_scope.end()) {
-      return it->second;
-    } else if (parent_scope) {
-      return parent_scope->get(id);
+    auto *scope = this;
+    std::vector<LexScope *> closures;
+    mlir::Value target;
+    while (scope) {
+      auto it = scope->current_scope.find(id);
+      if (it != scope->current_scope.end()) {
+        target = it->second;
+        break;
+      }
+      if (scope->scope_kind == Closure) {
+        closures.push_back(scope);
+      }
+      scope = scope->parent_scope;
     }
 
-    return {};
+    if (!target) {
+      return {};
+    }
+
+    // if there is no closure barrier between the current location and the
+    // target
+    if (closures.empty()) {
+      return target;
+    }
+
+    auto var_type = sir::VarType::get(builder.getContext());
+    // if target is in the global scope
+    if (scope->scope_kind == Global) {
+      return builder.create<sir::GlobalLoadOp>(
+          target.getLoc(), var_type,
+          mlir::SymbolRefAttr::get(builder.getContext(), id));
+    }
+
+    // capture closure variables
+    for (auto it = closures.rbegin(); it != closures.rend(); ++it) {
+      auto *closure_scope = *it;
+      auto closure_op = closure_scope->closure_block->getParentOp();
+      if (auto closure = llvm::dyn_cast<sir::ClosureOp>(closure_op)) {
+        closure.getCapsMutable().append(target);
+      } else {
+        llvm_unreachable("closure op type not supported");
+      }
+
+      target =
+          closure_scope->closure_block->addArgument(var_type, target.getLoc());
+    }
+
+    return target;
   }
 
-  void set(llvm::StringRef id, mlir::Value value) { current_scope[id] = value; }
-
-  bool root() const { return parent_scope == nullptr; }
+  void set(llvm::StringRef id, mlir::Value value) {
+    current_scope[id] = value;
+    if (scope_kind == Global) {
+      builder.create<sir::GlobalStoreOp>(
+          value.getLoc(), mlir::SymbolRefAttr::get(builder.getContext(), id),
+          value);
+    }
+  }
 };
 
 struct SExprToSIRConversionPass
@@ -60,7 +124,7 @@ struct SExprToSIRConversionPass
     mlir::OpBuilder builder(new_module.getRegion());
 
     bool success = true;
-    LexScope global_scope;
+    LexScope global_scope(builder);
     for (auto e : root.getExprs()) {
       if (!visitOp(e.getDefiningOp(), builder, global_scope)) {
         success = false;
@@ -141,7 +205,7 @@ struct SExprToSIRConversionPass
       return {};
     }
 
-    LexScope new_scope(&scope);
+    LexScope new_scope(scope, LexScope::Local, builder);
 
     mlir::Value last;
     for (auto e : exprs.drop_front(1)) {
@@ -283,7 +347,7 @@ struct SExprToSIRConversionPass
       auto block = &lambda.getBody().emplaceBlock();
       builder.setInsertionPointToStart(block);
 
-      LexScope new_scope(&scope);
+      LexScope new_scope(scope, LexScope::Closure, builder, block);
       for (size_t i = 0; i < args.size(); ++i) {
         auto arg =
             block->addArgument(var_type, names.getExprs()[i + 1].getLoc());
@@ -367,7 +431,7 @@ struct SExprToSIRConversionPass
     auto block = &lambda.getBody().emplaceBlock();
     builder.setInsertionPointToStart(block);
 
-    LexScope new_scope(&scope);
+    LexScope new_scope(scope, LexScope::Closure, builder, block);
     for (size_t i = 0; i < args.size(); ++i) {
       auto arg = block->addArgument(var_type, args[i].getLoc());
       new_scope.set(arg_names[i], arg);
