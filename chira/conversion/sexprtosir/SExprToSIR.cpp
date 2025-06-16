@@ -90,6 +90,7 @@ struct LexScope {
 
       target =
           closure_scope->closure_block->addArgument(var_type, target.getLoc());
+      closure_scope->current_scope[id] = target;
     }
 
     return target;
