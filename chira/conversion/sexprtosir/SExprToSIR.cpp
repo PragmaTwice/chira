@@ -53,11 +53,11 @@ struct LexScope {
   mlir::Value get(llvm::StringRef id) {
     auto *scope = this;
     std::vector<LexScope *> closures;
-    mlir::Value target;
+    std::optional<mlir::Value> target_opt;
     while (scope) {
       auto it = scope->current_scope.find(id);
       if (it != scope->current_scope.end()) {
-        target = it->second;
+        target_opt = it->second;
         break;
       }
       if (scope->scope_kind == Closure) {
@@ -66,9 +66,11 @@ struct LexScope {
       scope = scope->parent_scope;
     }
 
-    if (!target) {
+    if (!target_opt) {
       return {};
     }
+
+    mlir::Value target = *target_opt;
 
     // if there is no closure barrier between the current location and the
     // target
@@ -82,6 +84,15 @@ struct LexScope {
     for (auto it = closures.rbegin(); it != closures.rend(); ++it) {
       auto *closure_scope = *it;
       auto closure_op = closure_scope->closure_block->getParentOp();
+      if (!target) {
+        auto ip = builder.saveInsertionPoint();
+        builder.setInsertionPoint(closure_op);
+        target = builder.create<sir::UnresolvedNameOp>(
+            closure_op->getLoc(), var_type,
+            mlir::StringAttr::get(builder.getContext(), id));
+
+        builder.restoreInsertionPoint(ip);
+      }
       if (auto closure = llvm::dyn_cast<sir::ClosureOp>(closure_op)) {
         closure.getCapsMutable().append(target);
       } else {
@@ -398,6 +409,9 @@ struct SExprToSIRConversionPass
             << "expected 2 arguments in (define <name> <value>)";
         return {};
       }
+
+      // put it into the scope in ahead of time to let recursive function works
+      scope.set(name.getId().strref(), mlir::Value());
 
       auto value = visitOp(exprs[2].getDefiningOp(), builder, scope);
       if (!value) {

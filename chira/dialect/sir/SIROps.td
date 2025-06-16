@@ -260,4 +260,20 @@ def SIR_SetOp : SIR_Op<"set"> {
   }];
 }
 
+def SIR_UnresolvedNameOp : SIR_Op<"unresolved_name"> {
+  let summary = "a placeholder variable for an unresolved name";
+
+  let arguments = (ins
+    Builtin_StringAttr:$name
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+
+  let assemblyFormat = [{
+    attr-dict
+  }];
+}
+
 #endif
