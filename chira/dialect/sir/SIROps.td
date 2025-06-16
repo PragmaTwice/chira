@@ -260,33 +260,4 @@ def SIR_SetOp : SIR_Op<"set"> {
   }];
 }
 
-def SIR_GlobalStoreOp : SIR_Op<"store_global"> {
-  let summary = "store a variable to global symbol table";
-
-  let arguments = (ins
-    Builtin_SymbolRefAttr:$name,
-    SIR_Var:$value
-  );
-
-  let assemblyFormat = [{
-    $name $value attr-dict
-  }];
-}
-
-def SIR_GlobalLoadOp : SIR_Op<"load_global"> {
-  let summary = "load a variable from global symbol table";
-
-  let arguments = (ins
-    Builtin_SymbolRefAttr:$name
-  );
-
-  let results = (outs
-    SIR_Var:$res
-  );
-
-  let assemblyFormat = [{
-    $name attr-dict
-  }];
-}
-
 #endif

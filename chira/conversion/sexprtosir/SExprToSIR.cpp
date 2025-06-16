@@ -77,12 +77,6 @@ struct LexScope {
     }
 
     auto var_type = sir::VarType::get(builder.getContext());
-    // if target is in the global scope
-    if (scope->scope_kind == Global) {
-      return builder.create<sir::GlobalLoadOp>(
-          target.getLoc(), var_type,
-          mlir::SymbolRefAttr::get(builder.getContext(), id));
-    }
 
     // capture closure variables
     for (auto it = closures.rbegin(); it != closures.rend(); ++it) {
@@ -101,14 +95,7 @@ struct LexScope {
     return target;
   }
 
-  void set(llvm::StringRef id, mlir::Value value) {
-    current_scope[id] = value;
-    if (scope_kind == Global) {
-      builder.create<sir::GlobalStoreOp>(
-          value.getLoc(), mlir::SymbolRefAttr::get(builder.getContext(), id),
-          value);
-    }
-  }
+  void set(llvm::StringRef id, mlir::Value value) { current_scope[id] = value; }
 };
 
 struct SExprToSIRConversionPass
