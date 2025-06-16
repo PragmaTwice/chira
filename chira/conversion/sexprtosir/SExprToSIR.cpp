@@ -498,7 +498,7 @@ struct SExprToSIRConversionPass
     }
 
     auto var_type = sir::VarType::get(&getContext());
-    auto symbol = mlir::SymbolRefAttr::get(builder.getContext(), id);
+    auto symbol = mlir::StringAttr::get(builder.getContext(), id);
     if (isArithPrimOp(id)) {
       return builder.create<sir::ArithPrimOp>(expr->getLoc(), var_type, symbol,
                                               operands);

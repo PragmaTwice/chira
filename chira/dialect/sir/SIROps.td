@@ -205,7 +205,7 @@ def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
   let summary = "call an arithmetic primitive operation with arguments";
 
   let arguments = (ins
-    Builtin_SymbolRefAttr:$op,
+    Builtin_StringAttr:$op,
     Variadic<SIR_Var>:$args
   );
 
@@ -222,7 +222,7 @@ def SIR_IOPrimOp : SIR_Op<"io_prim"> {
   let summary = "call an IO primitive operation with arguments";
 
   let arguments = (ins
-    Builtin_SymbolRefAttr:$op,
+    Builtin_StringAttr:$op,
     Variadic<SIR_Var>:$args
   );
 
