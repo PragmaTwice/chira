@@ -272,7 +272,7 @@ def SIR_UnresolvedNameOp : SIR_Op<"unresolved_name"> {
   );
 
   let assemblyFormat = [{
-    attr-dict
+    $name attr-dict
   }];
 }
 
