@@ -50,9 +50,51 @@ struct ConvertSelfRecursive : mlir::OpRewritePattern<sir::ClosureOp> {
     for (auto cap : caps) {
       new_caps.push_back(cap == op.getRes() ? lambda : cap);
     }
-    rewriter.replaceOpWithNewOp<sir::BindOp>(
+    auto bind = rewriter.replaceOpWithNewOp<sir::BindOp>(
         op, var_type, mlir::ValueRange{lambda}, new_caps);
+    if (auto dn = op->getAttr("defined_name")) {
+      bind->setAttr("defined_name", dn);
+    }
     return mlir::success();
+  }
+};
+
+struct ConvertUnresolvedName : mlir::OpRewritePattern<sir::UnresolvedNameOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(sir::UnresolvedNameOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    for (auto user : op->getUsers()) {
+      if (auto closure = llvm::dyn_cast<sir::ClosureOp>(user)) {
+        if (auto attr = closure->getAttr("defined_name");
+            attr && llvm::dyn_cast<mlir::StringAttr>(attr) == op.getName()) {
+          auto caps = closure.getCaps();
+          auto lambda_type = sir::LambdaType::get(getContext());
+          auto i64 = mlir::IntegerType::get(getContext(), 64);
+          auto lambda = rewriter.create<sir::LambdaOp>(
+              op->getLoc(), lambda_type,
+              mlir::IntegerAttr::get(i64, caps.size()));
+          lambda.getBody().takeBody(closure.getBody());
+
+          auto var_type = sir::VarType::get(getContext());
+
+          std::vector<mlir::Value> new_caps;
+          for (auto cap : caps) {
+            new_caps.push_back(cap == op.getRes() ? lambda : cap);
+          }
+          auto bind = rewriter.replaceOpWithNewOp<sir::BindOp>(
+              closure, var_type, mlir::ValueRange{lambda}, new_caps);
+          if (auto dn = closure->getAttr("defined_name")) {
+            bind->setAttr("defined_name", dn);
+          }
+          rewriter.eraseOp(op);
+          return mlir::success();
+        }
+      }
+    }
+
+    return rewriter.notifyMatchFailure(op, "not implemented yet");
   }
 };
 
@@ -65,6 +107,7 @@ struct RecursiveResolverPass
 
     mlir::RewritePatternSet patterns(context);
     patterns.add<ConvertSelfRecursive>(context);
+    patterns.add<ConvertUnresolvedName>(context);
 
     if (failed(mlir::applyPatternsGreedily(module, std::move(patterns))))
       signalPassFailure();
