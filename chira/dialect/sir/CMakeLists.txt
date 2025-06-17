@@ -24,3 +24,5 @@ add_mlir_dialect_library(SIROps
   LINK_LIBS PUBLIC
   MLIRIR
 )
+
+add_subdirectory(transforms)

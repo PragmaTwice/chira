@@ -15,6 +15,7 @@
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
+#include "chira/dialect/sir/transforms/Passes.h"
 #include "chira/parser/Parser.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
@@ -131,6 +132,7 @@ int main(int argc, char *argv[]) {
     pm.addPass(chira::createSExprToSIRConversionPass());
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
+    pm.addPass(chira::sir::createRecursiveResolverPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;

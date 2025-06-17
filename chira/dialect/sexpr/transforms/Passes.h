@@ -45,4 +45,4 @@ std::unique_ptr<mlir::Pass> createMacroExpanderPass();
 
 } // namespace chira::sexpr
 
-#endif // CHIRA_DIALECT_SEXPR_TRANSFORMS_PASSESF
+#endif // CHIRA_DIALECT_SEXPR_TRANSFORMS_PASSES
