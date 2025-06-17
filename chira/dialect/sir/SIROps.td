@@ -274,4 +274,37 @@ def SIR_UnresolvedNameOp : SIR_Op<"unresolved_name"> {
   }];
 }
 
+def SIR_FuncRefOp : SIR_Op<"func_ref"> {
+  let summary = "a reference to a function symbol";
+
+  let arguments = (ins
+    Builtin_SymbolRefAttr:$func
+  );
+
+  let results = (outs
+    SIR_Lambda:$res
+  );
+
+  let assemblyFormat = [{
+    $func attr-dict
+  }];
+}
+
+def SIR_FuncOp : SIR_Op<"func"> {
+  let summary = "define a function symbol with its code body";
+
+  let arguments = (ins
+    Builtin_SymbolRefAttr:$name,
+    Builtin_IntegerAttr:$cap_size
+  );
+
+  let regions = (region
+    SizedRegion<1>:$body
+  );
+
+  let assemblyFormat = [{
+    $name $body attr-dict
+  }];
+}
+
 #endif

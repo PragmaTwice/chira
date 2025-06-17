@@ -133,6 +133,9 @@ int main(int argc, char *argv[]) {
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
     pm.addPass(chira::sir::createRecursiveResolverPass());
+    pm.addPass(mlir::createCanonicalizerPass());
+    pm.addPass(mlir::createCSEPass());
+    pm.addPass(chira::sir::createLambdaOutliningPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;

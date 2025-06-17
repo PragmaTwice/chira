@@ -15,6 +15,7 @@
 add_mlir_library(SIRTransforms
     Passes.h
     RecursiveResolver.cpp
+    LambdaOutlining.cpp
 
     LINK_LIBS PUBLIC
     MLIRIR
