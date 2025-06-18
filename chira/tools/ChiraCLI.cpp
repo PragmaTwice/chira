@@ -130,12 +130,10 @@ int main(int argc, char *argv[]) {
     mlir::PassManager pm(module->getContext());
 
     pm.addPass(chira::createSExprToSIRConversionPass());
-    pm.addPass(mlir::createCanonicalizerPass());
-    pm.addPass(mlir::createCSEPass());
     pm.addPass(chira::sir::createRecursiveResolverPass());
+    pm.addPass(chira::sir::createLambdaOutliningPass());
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
-    pm.addPass(chira::sir::createLambdaOutliningPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;

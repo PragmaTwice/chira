@@ -46,7 +46,7 @@ class SIR_Op<string mnemonic, list<Trait> traits = []> :
   let extraClassDeclaration = "";
 }
 
-def SIR_NumOp : SIR_Op<"num"> {
+def SIR_NumOp : SIR_Op<"num", [Pure]> {
   let summary = "construct a variable from a number literal";
 
   let arguments = (ins
@@ -62,7 +62,7 @@ def SIR_NumOp : SIR_Op<"num"> {
   }];
 }
 
-def SIR_StrOp : SIR_Op<"str"> {
+def SIR_StrOp : SIR_Op<"str", [Pure]> {
   let summary = "construct a variable from a string literal";
 
   let arguments = (ins
@@ -200,7 +200,7 @@ def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
   }];
 }
 
-def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
+def SIR_ArithPrimOp : SIR_Op<"arith_prim", [Pure]> {
   let summary = "call an arithmetic primitive operation with arguments";
 
   let arguments = (ins
