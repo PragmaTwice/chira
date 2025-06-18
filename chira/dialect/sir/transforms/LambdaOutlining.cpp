@@ -50,8 +50,11 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
 
     rewriter.restoreInsertionPoint(ip);
     auto var_type = sir::VarType::get(getContext());
-    rewriter.replaceOpWithNewOp<sir::BindRefOp>(op, var_type, symbol,
-                                                op.getCaps());
+    auto bind = rewriter.replaceOpWithNewOp<sir::BindRefOp>(
+        op, var_type, symbol, op.getCaps());
+    if (auto dn = op->getAttr("defined_name")) {
+      bind->setAttr("defined_name", dn);
+    }
     return mlir::success();
   }
 
