@@ -29,13 +29,34 @@ namespace chira::sir {
 namespace {
 
 struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
-  using OpRewritePattern::OpRewritePattern;
+  ConvertClosure(mlir::MLIRContext *context, size_t &lambda_count)
+      : mlir::OpRewritePattern<sir::ClosureOp>(context),
+        lambda_count(lambda_count) {}
 
   mlir::LogicalResult
   matchAndRewrite(sir::ClosureOp op,
                   mlir::PatternRewriter &rewriter) const override {
-    return mlir::failure();
+    auto ip = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
+
+    auto name = "lambda_" + std::to_string(lambda_count++);
+    auto name_attr = mlir::StringAttr::get(getContext(), name);
+    auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
+    auto i64 = mlir::IntegerType::get(getContext(), 64);
+    auto func = rewriter.create<sir::FuncOp>(
+        op->getLoc(), name_attr,
+        mlir::IntegerAttr::get(i64, op.getCaps().size()));
+    func.getBody().takeBody(op.getBody());
+
+    rewriter.restoreInsertionPoint(ip);
+    auto var_type = sir::VarType::get(getContext());
+    rewriter.replaceOpWithNewOp<sir::BindRefOp>(op, var_type, symbol,
+                                                op.getCaps());
+    return mlir::success();
   }
+
+private:
+  size_t &lambda_count;
 };
 
 struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
@@ -50,9 +71,10 @@ struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
     rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
 
     auto name = "lambda_" + std::to_string(lambda_count++);
+    auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
     auto func =
-        rewriter.create<sir::FuncOp>(op->getLoc(), symbol, op.getCapSize());
+        rewriter.create<sir::FuncOp>(op->getLoc(), name_attr, op.getCapSize());
     func.getBody().takeBody(op.getBody());
 
     rewriter.restoreInsertionPoint(ip);
@@ -77,7 +99,7 @@ struct LambdaOutliningPass
     builder.setInsertionPointToStart(new_module.getBody());
     auto i64 = mlir::IntegerType::get(context, 64);
     auto main = builder.create<sir::FuncOp>(
-        module->getLoc(), mlir::SymbolRefAttr::get(context, "main"),
+        module->getLoc(), mlir::StringAttr::get(context, "main"),
         mlir::IntegerAttr::get(i64, 0));
     main.getBody().takeBody(module.getRegion());
     builder.setInsertionPointToEnd(&main.getBody().front());
@@ -89,9 +111,11 @@ struct LambdaOutliningPass
 
     mlir::RewritePatternSet patterns(context);
     size_t lambda_count = 1;
-    patterns.add<ConvertLambda>(context, lambda_count);
+    patterns.add<ConvertClosure, ConvertLambda>(context, lambda_count);
 
-    if (failed(mlir::applyPatternsGreedily(main, std::move(patterns))))
+    if (failed(mlir::applyPatternsGreedily(
+            main, std::move(patterns),
+            mlir::GreedyRewriteConfig{.useTopDownTraversal = true})))
       signalPassFailure();
   }
 };

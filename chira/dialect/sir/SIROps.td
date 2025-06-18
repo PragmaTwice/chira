@@ -19,6 +19,7 @@ include "mlir/IR/OpBase.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributes.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
+include "mlir/IR/SymbolInterfaces.td"
 
 def SIR_Dialect : Dialect {
   let name = "sir";
@@ -290,11 +291,34 @@ def SIR_FuncRefOp : SIR_Op<"func_ref"> {
   }];
 }
 
-def SIR_FuncOp : SIR_Op<"func"> {
+// `%f = sir.bind_ref f x y` is equivalent to
+// ```
+//  %f_l = sir.func_ref @f
+//  %f = sir.bind %f_l x y
+// ```
+// and it cannot be used for recursive functions
+def SIR_BindRefOp : SIR_Op<"bind_ref"> {
+  let summary = "bind a function symbol with its captures";
+
+  let arguments = (ins
+    Builtin_SymbolRefAttr:$func,
+    Variadic<SIR_Var>:$caps
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+
+  let assemblyFormat = [{
+    $func $caps attr-dict
+  }];
+}
+
+def SIR_FuncOp : SIR_Op<"func", [Symbol]> {
   let summary = "define a function symbol with its code body";
 
   let arguments = (ins
-    Builtin_SymbolRefAttr:$name,
+    Builtin_StringAttr:$sym_name,
     Builtin_IntegerAttr:$cap_size
   );
 
@@ -303,7 +327,7 @@ def SIR_FuncOp : SIR_Op<"func"> {
   );
 
   let assemblyFormat = [{
-    $name $body attr-dict
+    $sym_name $body attr-dict
   }];
 }
 
