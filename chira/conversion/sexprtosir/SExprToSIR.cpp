@@ -24,6 +24,7 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorHandling.h"
+#include <charconv>
 
 namespace chira {
 
@@ -152,11 +153,24 @@ struct SExprToSIRConversionPass
       return builder.create<sir::StrOp>(op->getLoc(), var_type, str.getStr());
     } else if (auto num = llvm::dyn_cast<sexpr::NumOp>(op)) {
       auto var_type = sir::VarType::get(&getContext());
-      auto val =
-          llvm::APFloat(llvm::APFloat::IEEEquad(), num.getNum().getValue());
-      auto attr =
-          mlir::FloatAttr::get(mlir::Float128Type::get(&getContext()), val);
-      return builder.create<sir::NumOp>(op->getLoc(), var_type, attr);
+
+      auto num_str = num.getNum().getValue();
+      int64_t int_value;
+      auto int_res = std::from_chars(
+          num_str.data(), num_str.data() + num_str.size(), int_value);
+      mlir::Attribute val_attr;
+      if (int_res.ec != std::errc() ||
+          int_res.ptr != num_str.data() + num_str.size()) {
+        double double_value;
+        std::from_chars(num_str.data(), num_str.data() + num_str.size(),
+                        double_value);
+        val_attr = mlir::FloatAttr::get(mlir::Float64Type::get(&getContext()),
+                                        double_value);
+      } else {
+        val_attr = mlir::IntegerAttr::get(
+            mlir::IntegerType::get(&getContext(), 64), int_value);
+      }
+      return builder.create<sir::NumOp>(op->getLoc(), var_type, val_attr);
     }
 
     llvm_unreachable("unexpected operation type");

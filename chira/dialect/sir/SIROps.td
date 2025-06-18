@@ -50,7 +50,7 @@ def SIR_NumOp : SIR_Op<"num", [Pure]> {
   let summary = "construct a variable from a number literal";
 
   let arguments = (ins
-    Builtin_FloatAttr:$num
+    AnyAttrOf<[Builtin_FloatAttr, Builtin_IntegerAttr]>:$num
   );
 
   let results = (outs
@@ -328,6 +328,38 @@ def SIR_FuncOp : SIR_Op<"func", [Symbol]> {
 
   let assemblyFormat = [{
     $sym_name $body attr-dict
+  }];
+}
+
+// low-level operations
+
+def SIR_Env : TypeDef<SIR_Dialect, "Env"> {
+  let mnemonic = "env";
+  let summary = "capture environment in lambdas";
+
+  let parameters = (ins
+    "size_t":$size
+  );
+
+  let assemblyFormat = [{
+    `<` $size `>`
+  }];
+}
+
+def SIR_EnvGetOp : SIR_Op<"env_get"> {
+  let summary = "get a variable from the environment";
+
+  let arguments = (ins
+    SIR_Env:$env,
+    Builtin_IntegerAttr:$index
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+
+  let assemblyFormat = [{
+    type($env) $env `[` $index `]` attr-dict
   }];
 }
 
