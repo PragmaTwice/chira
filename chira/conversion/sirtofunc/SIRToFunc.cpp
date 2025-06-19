@@ -39,8 +39,8 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
       arg_types.push_back(env_type);
     }
     auto type = rewriter.getFunctionType(arg_types, var_type);
-    auto func = rewriter.create<mlir::func::FuncOp>(
-        op->getLoc(), op.getSymName().getValue(), type);
+    std::string name = "chiracg_" + op.getSymName().getValue().str();
+    auto func = rewriter.create<mlir::func::FuncOp>(op->getLoc(), name, type);
 
     auto body = &op.getBody();
     mlir::OpBuilder builder(getContext());

@@ -401,6 +401,10 @@ def SIR_ClosureFromEnvOp : SIR_Op<"closure_from_env"> {
   let results = (outs
     SIR_Var:$res
   );
+
+  let assemblyFormat = [{
+    $lambda type($env) $env attr-dict
+  }];
 }
 
 def SIR_AsBoolOp : SIR_Op<"as_bool"> {

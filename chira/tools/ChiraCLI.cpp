@@ -167,6 +167,7 @@ int main(int argc, char *argv[]) {
       pm.enableIRPrinting();
 
     pm.addPass(chira::sir::createLambdaOutliningPass());
+    pm.addPass(chira::sir::createBindLoweringPass());
     pm.addPass(chira::createSIRToFuncConversionPass());
     pm.addPass(chira::createSIRToSCFConversionPass());
 

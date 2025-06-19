@@ -23,6 +23,8 @@ std::unique_ptr<mlir::Pass> createRecursiveResolverPass();
 
 std::unique_ptr<mlir::Pass> createLambdaOutliningPass();
 
+std::unique_ptr<mlir::Pass> createBindLoweringPass();
+
 } // namespace chira::sir
 
 #endif // CHIRA_DIALECT_SIR_TRANSFORMS_PASSES
