@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
+#include "chira/conversion/sirtofunc/SIRToFunc.h"
+#include "chira/conversion/sirtoscf/SIRToSCF.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/dialect/sir/transforms/Passes.h"
@@ -54,12 +56,23 @@ llvm::cl::opt<size_t>
                   llvm::cl::init(chira::sexpr::Printer::MAX_LINE_LENGTH),
                   llvm::cl::cat(CLICat));
 
+llvm::cl::opt<bool>
+    OutputSIR("s",
+              llvm::cl::desc("transform the input program to SIR and output it "
+                             "in the MLIR SIR form"),
+              llvm::cl::init(false), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<bool> PrintIR(
+    "p", llvm::cl::desc("print IR after and before all transformation passes"),
+    llvm::cl::init(false), llvm::cl::cat(CLICat));
+
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
   llvm::cl::ParseCommandLineOptions(
       argc, argv, "Chira CLI - MLIR-based Scheme compiler and runtime\n");
 
   mlir::MLIRContext context;
+  context.disableMultithreading(PrintIR);
 
   auto input_res = llvm::MemoryBuffer::getFileOrSTDIN(InputFilename);
   if (!input_res) {
@@ -89,7 +102,7 @@ int main(int argc, char *argv[]) {
   mlir::OpPrintingFlags flags;
   flags.enableDebugInfo();
 
-  chira::parser::Tokenizer tokenizer(context, std::move(input));
+  chira::parser::Tokenizer tokenizer(context, input.get());
 
   auto res = tokenizer.Tokenize();
   if (res.failed()) {
@@ -108,6 +121,8 @@ int main(int argc, char *argv[]) {
 
   {
     mlir::PassManager pm(module->getContext());
+    if (PrintIR)
+      pm.enableIRPrinting();
 
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
@@ -128,12 +143,32 @@ int main(int argc, char *argv[]) {
 
   {
     mlir::PassManager pm(module->getContext());
+    if (PrintIR)
+      pm.enableIRPrinting();
 
     pm.addPass(chira::createSExprToSIRConversionPass());
     pm.addPass(chira::sir::createRecursiveResolverPass());
-    pm.addPass(chira::sir::createLambdaOutliningPass());
     pm.addPass(mlir::createCanonicalizerPass());
     pm.addPass(mlir::createCSEPass());
+
+    if (mlir::failed(pm.run(module))) {
+      return 1;
+    }
+  }
+
+  if (OutputSIR) {
+    module->print(os, flags);
+    return 0;
+  }
+
+  {
+    mlir::PassManager pm(module->getContext());
+    if (PrintIR)
+      pm.enableIRPrinting();
+
+    pm.addPass(chira::sir::createLambdaOutliningPass());
+    pm.addPass(chira::createSIRToFuncConversionPass());
+    pm.addPass(chira::createSIRToSCFConversionPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;

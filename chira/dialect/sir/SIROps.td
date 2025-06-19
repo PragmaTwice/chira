@@ -46,7 +46,7 @@ class SIR_Op<string mnemonic, list<Trait> traits = []> :
   let extraClassDeclaration = "";
 }
 
-def SIR_NumOp : SIR_Op<"num", [Pure]> {
+def SIR_NumOp : SIR_Op<"num"> {
   let summary = "construct a variable from a number literal";
 
   let arguments = (ins
@@ -62,7 +62,7 @@ def SIR_NumOp : SIR_Op<"num", [Pure]> {
   }];
 }
 
-def SIR_StrOp : SIR_Op<"str", [Pure]> {
+def SIR_StrOp : SIR_Op<"str"> {
   let summary = "construct a variable from a string literal";
 
   let arguments = (ins
@@ -200,7 +200,7 @@ def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
   }];
 }
 
-def SIR_ArithPrimOp : SIR_Op<"arith_prim", [Pure]> {
+def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
   let summary = "call an arithmetic primitive operation with arguments";
 
   let arguments = (ins
@@ -234,7 +234,7 @@ def SIR_IOPrimOp : SIR_Op<"io_prim"> {
   }];
 }
 
-def SIR_UnspecifiedOp : SIR_Op<"unspec", [Pure]> {
+def SIR_UnspecifiedOp : SIR_Op<"unspec"> {
   let summary = "construct a variable with unspecified value";
 
   let results = (outs
@@ -274,6 +274,9 @@ def SIR_UnresolvedNameOp : SIR_Op<"unresolved_name"> {
     $name attr-dict
   }];
 }
+
+// low-level operations (for MLIR dialect lowering)
+// TODO: should be moved to a separate dialect like "chir"
 
 def SIR_FuncRefOp : SIR_Op<"func_ref"> {
   let summary = "a reference to a function symbol";
@@ -331,8 +334,6 @@ def SIR_FuncOp : SIR_Op<"func", [Symbol]> {
   }];
 }
 
-// low-level operations
-
 def SIR_Env : TypeDef<SIR_Dialect, "Env"> {
   let mnemonic = "env";
   let summary = "capture environment in lambdas";
@@ -346,8 +347,8 @@ def SIR_Env : TypeDef<SIR_Dialect, "Env"> {
   }];
 }
 
-def SIR_EnvGetOp : SIR_Op<"env_get"> {
-  let summary = "get a variable from the environment";
+def SIR_EnvLoadOp : SIR_Op<"env_load"> {
+  let summary = "load a variable from the environment";
 
   let arguments = (ins
     SIR_Env:$env,
@@ -360,6 +361,61 @@ def SIR_EnvGetOp : SIR_Op<"env_get"> {
 
   let assemblyFormat = [{
     type($env) $env `[` $index `]` attr-dict
+  }];
+}
+
+def SIR_EnvStoreOp : SIR_Op<"env_store"> {
+  let summary = "store a variable into the environment";
+
+  let arguments = (ins
+    SIR_Env:$env,
+    Builtin_IntegerAttr:$index,
+    SIR_Var:$var
+  );
+
+  let assemblyFormat = [{
+    type($env) $env `[` $index `]` `=` $var attr-dict
+  }];
+}
+
+def SIR_EnvOp : SIR_Op<"env"> {
+  let summary = "create a new environment";
+
+  let results = (outs
+    SIR_Env:$env
+  );
+
+  let assemblyFormat = [{
+    type($env) attr-dict
+  }];
+}
+
+def SIR_ClosureFromEnvOp : SIR_Op<"closure_from_env"> {
+  let summary = "create a new closure from lambda and env";
+
+  let arguments = (ins
+    SIR_Lambda:$lambda,
+    SIR_Env:$env
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+}
+
+def SIR_AsBoolOp : SIR_Op<"as_bool"> {
+  let summary = "convert a variable to a boolean for conditional branching";
+
+  let arguments = (ins
+    SIR_Var:$var
+  );
+
+  let results = (outs
+    I1:$res
+  );
+
+  let assemblyFormat = [{
+    $var attr-dict
   }];
 }
 

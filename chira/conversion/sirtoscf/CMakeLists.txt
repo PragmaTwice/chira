@@ -12,6 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_subdirectory(sexprtosir)
-add_subdirectory(sirtofunc)
-add_subdirectory(sirtoscf)
+add_mlir_library(SIRToSCF
+    SIRToSCF.cpp
+    SIRToSCF.h
+
+    LINK_LIBS PUBLIC
+    MLIRIR
+    SIROps
+    MLIRSCFDialect
+)

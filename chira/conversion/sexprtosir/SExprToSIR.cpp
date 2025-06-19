@@ -114,6 +114,10 @@ struct LexScope {
 struct SExprToSIRConversionPass
     : public mlir::PassWrapper<SExprToSIRConversionPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
+  void getDependentDialects(mlir::DialectRegistry &registry) const override {
+    registry.insert<sir::SIRDialect>();
+  }
+
   void runOnOperation() override {
     auto module = getOperation();
 

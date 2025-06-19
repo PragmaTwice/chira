@@ -37,7 +37,6 @@ public:
       : module(mlir::ModuleOp::create(mlir::UnknownLoc::get(&ctx))),
         builder(module.getBodyRegion()), input(std::move(input)) {
     ctx.loadDialect<sexpr::SExprDialect>();
-    ctx.loadDialect<sir::SIRDialect>();
   }
 
   mlir::ModuleOp Module() { return module; }

@@ -57,7 +57,7 @@ struct Token {
 
 class Tokenizer {
 public:
-  using Input = std::unique_ptr<llvm::MemoryBuffer>;
+  using Input = llvm::MemoryBuffer *;
   using Result = std::vector<Token>;
 
   Tokenizer(mlir::MLIRContext &ctx, Input input)

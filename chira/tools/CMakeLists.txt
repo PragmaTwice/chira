@@ -22,4 +22,6 @@ target_link_libraries(chira-cli PUBLIC
     SExprTransforms
     SExprToSIR
     SIRTransforms
+    SIRToFunc
+    SIRToSCF
 )
