@@ -14,11 +14,14 @@
 
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
 #include "chira/conversion/sirtofunc/SIRToFunc.h"
+#include "chira/conversion/sirtollvm/SIRToLLVM.h"
 #include "chira/conversion/sirtoscf/SIRToSCF.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/dialect/sir/transforms/Passes.h"
 #include "chira/parser/Parser.h"
+#include "chira/target/LLVMTarget.h"
+#include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
@@ -170,12 +173,18 @@ int main(int argc, char *argv[]) {
     pm.addPass(chira::sir::createBindLoweringPass());
     pm.addPass(chira::createSIRToFuncConversionPass());
     pm.addPass(chira::createSIRToSCFConversionPass());
+    pm.addPass(mlir::createConvertSCFToCFPass());
+    pm.addPass(chira::createSIRToLLVMConversionPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;
     }
   }
 
-  module->print(os, flags);
+  llvm::LLVMContext llvm_context;
+  auto llvm_module = chira::target::translateToLLVM(
+      module, llvm_context, input->getBufferIdentifier());
+
+  llvm_module->print(os, nullptr);
   return 0;
 }

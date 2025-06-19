@@ -24,4 +24,5 @@ target_link_libraries(chira-cli PUBLIC
     SIRTransforms
     SIRToFunc
     SIRToSCF
+    SIRToLLVM
 )

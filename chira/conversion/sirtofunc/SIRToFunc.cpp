@@ -35,9 +35,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     auto var_type = sir::VarType::get(getContext());
     std::vector<mlir::Type> arg_types(param_size, var_type);
     auto env_type = sir::EnvType::get(getContext(), cap_size);
-    if (cap_size > 0) {
-      arg_types.push_back(env_type);
-    }
+    arg_types.push_back(env_type);
     auto type = rewriter.getFunctionType(arg_types, var_type);
     std::string name = "chiracg_" + op.getSymName().getValue().str();
     auto func = rewriter.create<mlir::func::FuncOp>(op->getLoc(), name, type);
@@ -45,10 +43,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     auto body = &op.getBody();
     mlir::OpBuilder builder(getContext());
     builder.setInsertionPointToStart(&body->front());
-    mlir::Value env;
-    if (cap_size > 0) {
-      env = body->addArgument(env_type, op.getLoc());
-    }
+    mlir::Value env = body->addArgument(env_type, op.getLoc());
     for (size_t i = param_size; i < param_size + cap_size; ++i) {
       auto arg = body->getArgument(i);
 
@@ -57,9 +52,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
           builder.getI64IntegerAttr(i - param_size));
       arg.replaceAllUsesWith(env_arg);
     }
-    if (cap_size > 0) {
-      body->front().eraseArguments(param_size, cap_size);
-    }
+    body->front().eraseArguments(param_size, cap_size);
 
     func.getBody().takeBody(op.getBody());
     rewriter.replaceOp(op, func);
