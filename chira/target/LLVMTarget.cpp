@@ -48,8 +48,8 @@ void optimizeLLVMModule(llvm::Module &module, llvm::OptimizationLevel level) {
   builder.registerLoopAnalyses(lam);
   builder.crossRegisterProxies(lam, fam, cgam, mam);
 
-  auto llvm_manager = builder.buildPerModuleDefaultPipeline(level);
-  llvm_manager.run(module, mam);
+  auto pm = builder.buildPerModuleDefaultPipeline(level);
+  pm.run(module, mam);
 }
 
 llvm::Error emitObjectFile(llvm::Module &module, llvm::raw_pwrite_stream &os) {
@@ -66,7 +66,7 @@ llvm::Error emitObjectFile(llvm::Module &module, llvm::raw_pwrite_stream &os) {
   }
 
   TargetOptions opt;
-  auto rm = std::optional<Reloc::Model>();
+  auto rm = Reloc::Model::PIC_;
   std::unique_ptr<TargetMachine> target_machine(
       target->createTargetMachine(target_triple, "generic", "", opt, rm));
   if (!target_machine) {
