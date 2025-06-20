@@ -59,10 +59,11 @@ mlir::LLVM::CallOp makeLLVMFuncCall(llvm::StringRef func_name,
 mlir::LLVM::AllocaOp allocVar(mlir::Operation *op,
                               mlir::ConversionPatternRewriter &rewriter) {
   auto ptr_type = mlir::LLVM::LLVMPointerType::get(rewriter.getContext(), 0);
-  auto array_size = rewriter.create<mlir::LLVM::ConstantOp>(
-      op->getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(3));
-  return rewriter.create<mlir::LLVM::AllocaOp>(
-      op->getLoc(), ptr_type, rewriter.getI64Type(), array_size);
+  auto one = rewriter.create<mlir::LLVM::ConstantOp>(
+      op->getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
+  auto array_type = mlir::LLVM::LLVMArrayType::get(rewriter.getI64Type(), 3);
+  return rewriter.create<mlir::LLVM::AllocaOp>(op->getLoc(), ptr_type,
+                                               array_type, one);
 }
 
 struct ConvertNumOp : mlir::ConvertOpToLLVMPattern<sir::NumOp> {
@@ -260,10 +261,12 @@ struct ConvertEnvOp : mlir::ConvertOpToLLVMPattern<sir::EnvOp> {
     if (!env_type) {
       llvm_unreachable("should be an env type");
     }
-    auto n = rewriter.create<mlir::LLVM::ConstantOp>(
-        op->getLoc(), rewriter.getI64Type(), env_type.getSize());
+    auto array_type =
+        mlir::LLVM::LLVMArrayType::get(ptr_type, env_type.getSize());
+    auto one = rewriter.create<mlir::LLVM::ConstantOp>(
+        op->getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(1));
     auto env = rewriter.create<mlir::LLVM::AllocaOp>(op->getLoc(), ptr_type,
-                                                     ptr_type, n);
+                                                     array_type, one);
     rewriter.replaceOp(op, env);
     return mlir::success();
   }
