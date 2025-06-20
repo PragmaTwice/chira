@@ -22,6 +22,7 @@
 #include "chira/parser/Parser.h"
 #include "chira/target/LLVMTarget.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
+#include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
@@ -175,6 +176,7 @@ int main(int argc, char *argv[]) {
     pm.addPass(chira::createSIRToSCFConversionPass());
     pm.addPass(mlir::createConvertSCFToCFPass());
     pm.addPass(chira::createSIRToLLVMConversionPass());
+    pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
     if (mlir::failed(pm.run(module))) {
       return 1;
