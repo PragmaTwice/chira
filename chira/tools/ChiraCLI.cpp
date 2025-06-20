@@ -28,11 +28,16 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IRReader/IRReader.h"
+#include "llvm/Linker/Linker.h"
+#include "llvm/Passes/OptimizationLevel.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SMLoc.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
 #include <system_error>
 
 llvm::cl::OptionCategory CLICat("chira-cli options");
@@ -63,8 +68,23 @@ llvm::cl::opt<size_t>
 llvm::cl::opt<bool>
     OutputSIR("s",
               llvm::cl::desc("transform the input program to SIR and output it "
-                             "in the MLIR SIR form"),
+                             "in the MLIR SIR text form"),
               llvm::cl::init(false), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<bool> OutputLLVM(
+    "l",
+    llvm::cl::desc(
+        "transform the input program to LLVM IR and output it in text form"),
+    llvm::cl::init(false), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<size_t>
+    OptimizationLevel("O",
+                      llvm::cl::desc("optimization level (0-3, default: 3)"),
+                      llvm::cl::init(3), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<std::string> ChiraRTDir(
+    "r", llvm::cl::desc("path of the directory contains chirart LLVM IR file"),
+    llvm::cl::init("."), llvm::cl::cat(CLICat));
 
 llvm::cl::opt<bool> PrintIR(
     "p", llvm::cl::desc("print IR after and before all transformation passes"),
@@ -187,6 +207,39 @@ int main(int argc, char *argv[]) {
   auto llvm_module = chira::target::translateToLLVM(
       module, llvm_context, input->getBufferIdentifier());
 
-  llvm_module->print(os, nullptr);
-  return 0;
+  if (OutputLLVM) {
+    llvm_module->print(os, nullptr);
+    return 0;
+  }
+
+  auto chirart_filename =
+      ChiraRTDir + "/chirart." + llvm::sys::getDefaultTargetTriple() + ".ll";
+  llvm::SMDiagnostic err;
+  auto chirart = llvm::parseIRFile(chirart_filename, err, llvm_context);
+  if (!chirart) {
+    err.print("", llvm::errs());
+    return 1;
+  }
+
+  if (llvm::Linker::linkModules(*llvm_module, std::move(chirart))) {
+    llvm::errs() << "failed to link chirart\n";
+    return 1;
+  }
+
+  llvm::OptimizationLevel opt_levels[] = {
+      llvm::OptimizationLevel::O0, llvm::OptimizationLevel::O1,
+      llvm::OptimizationLevel::O2, llvm::OptimizationLevel::O3};
+
+  chira::target::optimizeLLVMModule(*llvm_module,
+                                    opt_levels[OptimizationLevel]);
+
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllAsmPrinters();
+
+  if (auto err = chira::target::emitObjectFile(*llvm_module, os)) {
+    llvm::errs() << err << "\n";
+    return 1;
+  }
 }

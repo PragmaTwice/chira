@@ -18,6 +18,8 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Passes/OptimizationLevel.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace chira::target {
@@ -26,7 +28,7 @@ std::unique_ptr<llvm::Module> translateToLLVM(mlir::ModuleOp module,
                                               llvm::LLVMContext &ctx,
                                               llvm::StringRef name);
 
-void optimizeLLVMModule(llvm::Module &module);
+void optimizeLLVMModule(llvm::Module &module, llvm::OptimizationLevel level);
 
 llvm::Error emitObjectFile(llvm::Module &module, llvm::raw_pwrite_stream &os);
 

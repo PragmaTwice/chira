@@ -34,7 +34,7 @@ std::unique_ptr<llvm::Module> translateToLLVM(mlir::ModuleOp module,
   return mlir::translateModuleToLLVMIR(module.getOperation(), ctx, name);
 }
 
-void optimizeLLVMModule(llvm::Module &module) {
+void optimizeLLVMModule(llvm::Module &module, llvm::OptimizationLevel level) {
   llvm::PassBuilder builder;
 
   llvm::LoopAnalysisManager lam;
@@ -48,8 +48,7 @@ void optimizeLLVMModule(llvm::Module &module) {
   builder.registerLoopAnalyses(lam);
   builder.crossRegisterProxies(lam, fam, cgam, mam);
 
-  auto llvm_manager =
-      builder.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O3);
+  auto llvm_manager = builder.buildPerModuleDefaultPipeline(level);
   llvm_manager.run(module, mam);
 }
 
@@ -90,4 +89,4 @@ llvm::Error emitObjectFile(llvm::Module &module, llvm::raw_pwrite_stream &os) {
   return Error::success();
 }
 
-} // namespace hyperbrain::target
+} // namespace chira::target
