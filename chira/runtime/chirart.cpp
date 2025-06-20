@@ -19,14 +19,14 @@
 
 inline namespace chirart {
 
-inline void assert(bool cond, const char *msg) {
+[[gnu::always_inline]] inline void assert(bool cond, const char *msg) {
   if (!cond) [[unlikely]] {
     fprintf(stderr, "Assertion failed: %s\n", msg);
     std::abort();
   }
 }
 
-[[noreturn]] inline void unreachable(const char *msg) {
+[[gnu::always_inline]] [[noreturn]] inline void unreachable(const char *msg) {
   fprintf(stderr, "Unreachable: %s\n", msg);
   std::abort();
 }
@@ -58,7 +58,7 @@ private:
     } closure;
   } data;
 
-  void copyData(const Var &other) {
+  [[gnu::always_inline]] void copyData(const Var &other) {
     if (tag == INT) {
       data.int_ = other.data.int_;
     } else if (tag == FLOAT) {
@@ -71,68 +71,72 @@ private:
     } else if (tag == UNSPEC) {
       // nothing to copy for UNSPEC
     } else {
-      assert(false, "Invalid Var tag");
+      assert(false, "Invalid tag in Var");
     }
   }
 
 public:
-  Var() : tag(UNSPEC) {}
-  Var(int64_t v) : tag(INT) { data.int_ = v; }
-  Var(double v) : tag(FLOAT) { data.float_ = v; }
-  Var(bool v) : tag(BOOL) { data.bool_ = v; }
-  Var(Lambda func_ptr, Env caps, size_t cap_size)
+  [[gnu::always_inline]] Var() : tag(UNSPEC) {}
+  [[gnu::always_inline]] Var(int64_t v) : tag(INT) { data.int_ = v; }
+  [[gnu::always_inline]] Var(double v) : tag(FLOAT) { data.float_ = v; }
+  [[gnu::always_inline]] Var(bool v) : tag(BOOL) { data.bool_ = v; }
+  [[gnu::always_inline]] Var(Lambda func_ptr, Env caps, size_t cap_size)
       : tag(Tag(CLOSURE_BEGIN + cap_size)) {
     assert(cap_size < (1 << 16), "Too many closure captures");
     data.closure.func_ptr = func_ptr;
     data.closure.caps = caps;
   }
-  Var(Lambda func_ptr) : Var(func_ptr, nullptr, 0) {}
+  [[gnu::always_inline]] Var(Lambda func_ptr) : Var(func_ptr, nullptr, 0) {}
 
-  Var(const Var &other) : tag(other.tag) { copyData(other); }
+  [[gnu::always_inline]] Var(const Var &other) : tag(other.tag) {
+    copyData(other);
+  }
 
-  Var &operator=(const Var &other) {
+  [[gnu::always_inline]] Var &operator=(const Var &other) {
     tag = other.tag;
     copyData(other);
     return *this;
   }
 
-  bool isUnspecified() const { return tag == UNSPEC; }
-  bool isInt() const { return tag == INT; }
-  bool isFloat() const { return tag == FLOAT; }
-  bool isBool() const { return tag == BOOL; }
-  bool isClosure() const { return tag >= CLOSURE_BEGIN && tag < CLOSURE_END; }
+  [[gnu::always_inline]] bool isUnspecified() const { return tag == UNSPEC; }
+  [[gnu::always_inline]] bool isInt() const { return tag == INT; }
+  [[gnu::always_inline]] bool isFloat() const { return tag == FLOAT; }
+  [[gnu::always_inline]] bool isBool() const { return tag == BOOL; }
+  [[gnu::always_inline]] bool isClosure() const {
+    return tag >= CLOSURE_BEGIN && tag < CLOSURE_END;
+  }
 
-  int64_t getInt() const {
+  [[gnu::always_inline]] int64_t getInt() const {
     assert(isInt(), "Var is not an integer");
     return data.int_;
   }
 
-  double getFloat() const {
+  [[gnu::always_inline]] double getFloat() const {
     assert(isFloat(), "Var is not a float");
     return data.float_;
   }
 
-  bool getBool() const {
+  [[gnu::always_inline]] bool getBool() const {
     assert(isBool(), "Var is not a boolean");
     return data.bool_;
   }
 
-  Lambda getFuncPtr() const {
+  [[gnu::always_inline]] Lambda getFuncPtr() const {
     assert(isClosure(), "Var is not a closure");
     return data.closure.func_ptr;
   }
 
-  Env getCaps() const {
+  [[gnu::always_inline]] Env getCaps() const {
     assert(isClosure(), "Var is not a closure");
     return data.closure.caps;
   }
 
-  size_t getCapSize() const {
+  [[gnu::always_inline]] size_t getCapSize() const {
     assert(isClosure(), "Var is not a closure");
     return tag - CLOSURE_BEGIN;
   }
 
-  friend Var operator+(const Var &l, const Var &r) {
+  [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() + r.getInt());
     }
@@ -140,7 +144,7 @@ public:
     unreachable("Not implemented yet");
   }
 
-  friend Var operator-(const Var &l, const Var &r) {
+  [[gnu::always_inline]] friend Var operator-(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() - r.getInt());
     }
@@ -148,7 +152,7 @@ public:
     unreachable("Not implemented yet");
   }
 
-  friend Var operator<(const Var &l, const Var &r) {
+  [[gnu::always_inline]] friend Var operator<(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() < r.getInt());
     }
@@ -156,7 +160,7 @@ public:
     unreachable("Not implemented yet");
   }
 
-  void Display() const {
+  [[gnu::always_inline]] void Display() const {
     if (isInt()) {
       fprintf(stdout, "%ld", getInt());
       return;
@@ -177,16 +181,16 @@ void chirart_int(Var *r, int64_t num) { *r = Var(num); }
 void chirart_closure(Var *r, Lambda func_ptr, Env caps, size_t cap_size) {
   *r = Var(func_ptr, caps, cap_size);
 }
-void chirart_set(Var *l, Var *r) { *l = *r; }
-Lambda chirart_get_func_ptr(Var *v) { return v->getFuncPtr(); }
-Env chirart_get_caps(Var *v) { return v->getCaps(); }
+void chirart_set(Var *l, const Var *r) { *l = *r; }
+Lambda chirart_get_func_ptr(const Var *v) { return v->getFuncPtr(); }
+Env chirart_get_caps(const Var *v) { return v->getCaps(); }
 Var *chirart_env_load(Env env, size_t idx) { return env[idx]; }
 void chirart_env_store(Env env, size_t idx, Var *v) { env[idx] = v; }
-bool chirart_get_bool(Var *v) { return v->getBool(); }
-void chirart_add(Var *v, Var *l, Var *r) { *v = *l + *r; }
-void chirart_subtract(Var *v, Var *l, Var *r) { *v = *l - *r; }
-void chirart_lt(Var *v, Var *l, Var *r) { *v = *l < *r; }
-void chirart_display(Var *v, Var *l) {
+bool chirart_get_bool(const Var *v) { return v->getBool(); }
+void chirart_add(Var *v, const Var *l, const Var *r) { *v = *l + *r; }
+void chirart_subtract(Var *v, const Var *l, const Var *r) { *v = *l - *r; }
+void chirart_lt(Var *v, const Var *l, const Var *r) { *v = *l < *r; }
+void chirart_display(Var *v, const Var *l) {
   l->Display();
   chirart_unspec(v);
 }
