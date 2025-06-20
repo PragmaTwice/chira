@@ -19,14 +19,14 @@
 
 inline namespace chirart {
 
-void assert(bool cond, const char *msg) {
+inline void assert(bool cond, const char *msg) {
   if (!cond) [[unlikely]] {
     fprintf(stderr, "Assertion failed: %s\n", msg);
     std::abort();
   }
 }
 
-[[noreturn]] void unreachable(const char *msg) {
+[[noreturn]] inline void unreachable(const char *msg) {
   fprintf(stderr, "Unreachable: %s\n", msg);
   std::abort();
 }
