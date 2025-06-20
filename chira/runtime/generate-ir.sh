@@ -16,5 +16,6 @@
 
 set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+TRIPLE=$( clang --version | grep "Target:" | awk '{print $2}' )
 set -ex
-clang -O3 -Wall -S -emit-llvm -o "$SCRIPT_DIR/chirart.ll" "$SCRIPT_DIR/chirart.cpp"
+clang -O3 -Wall -S -emit-llvm -o "$SCRIPT_DIR/chirart.$TRIPLE.ll" "$SCRIPT_DIR/chirart.cpp"
