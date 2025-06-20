@@ -19,6 +19,7 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include <cstddef>
 
 namespace chira {
 
@@ -33,26 +34,31 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     auto cap_size = op.getCapSize().getUInt();
     auto param_size = op.getBody().getNumArguments() - cap_size;
     auto var_type = sir::VarType::get(getContext());
-    std::vector<mlir::Type> arg_types(param_size, var_type);
+    std::vector<mlir::Type> arg_types{var_type};
     auto env_type = sir::EnvType::get(getContext(), cap_size);
     arg_types.push_back(env_type);
-    auto type = rewriter.getFunctionType(arg_types, var_type);
+    for (size_t i = 0; i < param_size; ++i) {
+      arg_types.push_back(var_type);
+    }
+    auto type = rewriter.getFunctionType(arg_types, {});
     std::string name = "chiracg_" + op.getSymName().getValue().str();
     auto func = rewriter.create<mlir::func::FuncOp>(op->getLoc(), name, type);
 
     auto body = &op.getBody();
     mlir::OpBuilder builder(getContext());
     builder.setInsertionPointToStart(&body->front());
-    mlir::Value env = body->addArgument(env_type, op.getLoc());
-    for (size_t i = param_size; i < param_size + cap_size; ++i) {
+    mlir::Value env = body->insertArgument(0u, env_type, op.getLoc());
+    body->insertArgument(0u, var_type, op.getLoc());
+    size_t cap_begin = param_size + 2;
+    for (size_t i = cap_begin; i < cap_begin + cap_size; ++i) {
       auto arg = body->getArgument(i);
 
       auto env_arg = builder.create<sir::EnvLoadOp>(
           arg.getLoc(), var_type, env,
-          builder.getI64IntegerAttr(i - param_size));
+          builder.getI64IntegerAttr(i - cap_begin));
       arg.replaceAllUsesWith(env_arg);
     }
-    body->front().eraseArguments(param_size, cap_size);
+    body->front().eraseArguments(cap_begin, cap_size);
 
     func.getBody().takeBody(op.getBody());
     rewriter.replaceOp(op, func);
@@ -71,7 +77,9 @@ struct ConvertYieldOp : public mlir::OpConversionPattern<sir::YieldOp> {
       return mlir::failure();
     }
 
-    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op, op.getVar());
+    rewriter.create<sir::SetOp>(
+        op->getLoc(), op->getParentRegion()->getArgument(0), op.getVar());
+    rewriter.replaceOpWithNewOp<mlir::func::ReturnOp>(op);
     return mlir::success();
   }
 };
@@ -92,6 +100,7 @@ struct SIRToFuncConversionPass
     mlir::ConversionTarget target(*context);
 
     target.addLegalDialect<mlir::func::FuncDialect>();
+    target.addLegalOp<sir::SetOp>();
 
     patterns.add<ConvertYieldOp, ConvertFuncOp>(context);
 

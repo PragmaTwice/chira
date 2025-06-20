@@ -12,21 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <new>
 
 inline namespace chirart {
+
+void assert(bool cond, const char *msg) {
+  if (!cond) [[unlikely]] {
+    fprintf(stderr, "Assertion failed: %s\n", msg);
+    std::abort();
+  }
+}
+
+[[noreturn]] void unreachable(const char *msg) {
+  fprintf(stderr, "Unreachable: %s\n", msg);
+  std::abort();
+}
 
 using Lambda = void *;
 
 struct Var;
 using Env = Var **;
-
-inline void *GCMalloc(size_t n) { return malloc(n); }
 
 struct Var {
 private:
@@ -63,7 +71,7 @@ private:
     } else if (tag == UNSPEC) {
       // nothing to copy for UNSPEC
     } else {
-      assert(false && "Invalid Var tag");
+      assert(false, "Invalid Var tag");
     }
   }
 
@@ -74,7 +82,7 @@ public:
   Var(bool v) : tag(BOOL) { data.bool_ = v; }
   Var(Lambda func_ptr, Env caps, size_t cap_size)
       : tag(Tag(CLOSURE_BEGIN + cap_size)) {
-    assert(cap_size < (1 << 16) && "Too many closure captures");
+    assert(cap_size < (1 << 16), "Too many closure captures");
     data.closure.func_ptr = func_ptr;
     data.closure.caps = caps;
   }
@@ -95,39 +103,33 @@ public:
   bool isClosure() const { return tag >= CLOSURE_BEGIN && tag < CLOSURE_END; }
 
   int64_t getInt() const {
-    assert(isInt() && "Var is not an integer");
+    assert(isInt(), "Var is not an integer");
     return data.int_;
   }
 
   double getFloat() const {
-    assert(isFloat() && "Var is not a float");
+    assert(isFloat(), "Var is not a float");
     return data.float_;
   }
 
   bool getBool() const {
-    assert(isBool() && "Var is not a boolean");
+    assert(isBool(), "Var is not a boolean");
     return data.bool_;
   }
 
   Lambda getFuncPtr() const {
-    assert(isClosure() && "Var is not a closure");
+    assert(isClosure(), "Var is not a closure");
     return data.closure.func_ptr;
   }
 
   Env getCaps() const {
-    assert(isClosure() && "Var is not a closure");
+    assert(isClosure(), "Var is not a closure");
     return data.closure.caps;
   }
 
   size_t getCapSize() const {
-    assert(isClosure() && "Var is not a closure");
+    assert(isClosure(), "Var is not a closure");
     return tag - CLOSURE_BEGIN;
-  }
-
-  template <typename... Args> static Var *Create(Args... args) {
-    auto var = static_cast<Var *>(GCMalloc(sizeof(Var)));
-    new (var) Var(args...);
-    return var;
   }
 
   friend Var operator+(const Var &l, const Var &r) {
@@ -135,7 +137,7 @@ public:
       return Var(l.getInt() + r.getInt());
     }
 
-    assert(false && "Not implemented yet");
+    unreachable("Not implemented yet");
   }
 
   friend Var operator-(const Var &l, const Var &r) {
@@ -143,7 +145,7 @@ public:
       return Var(l.getInt() - r.getInt());
     }
 
-    assert(false && "Not implemented yet");
+    unreachable("Not implemented yet");
   }
 
   friend Var operator<(const Var &l, const Var &r) {
@@ -151,16 +153,16 @@ public:
       return Var(l.getInt() < r.getInt());
     }
 
-    assert(false && "Not implemented yet");
+    unreachable("Not implemented yet");
   }
 
   void Display() const {
     if (isInt()) {
-      printf("%ld", getInt());
+      fprintf(stdout, "%ld", getInt());
       return;
     }
 
-    assert(false && "Not implemented yet");
+    unreachable("Not implemented yet");
   }
 };
 
@@ -170,33 +172,29 @@ static_assert(sizeof(Var) == 24);
 
 extern "C" {
 
-Var *chirart_unspec() { return Var::Create(); }
-Var *chirart_int(int64_t num) { return Var::Create(num); }
-Var *chirart_closure(Lambda func_ptr, Env caps, size_t cap_size) {
-  return Var::Create(func_ptr, caps, cap_size);
+void chirart_unspec(Var *r) { *r = Var(); }
+void chirart_int(Var *r, int64_t num) { *r = Var(num); }
+void chirart_closure(Var *r, Lambda func_ptr, Env caps, size_t cap_size) {
+  *r = Var(func_ptr, caps, cap_size);
 }
-Var *chirart_closure_nocap(Lambda func_ptr) { return Var::Create(func_ptr); }
 void chirart_set(Var *l, Var *r) { *l = *r; }
-Env chirart_env(size_t size) {
-  return static_cast<Env>(GCMalloc(size * sizeof(Var *)));
-}
 Lambda chirart_get_func_ptr(Var *v) { return v->getFuncPtr(); }
 Env chirart_get_caps(Var *v) { return v->getCaps(); }
 Var *chirart_env_load(Env env, size_t idx) { return env[idx]; }
 void chirart_env_store(Env env, size_t idx, Var *v) { env[idx] = v; }
-Var *chirart_copy(Var *v) { return Var::Create(*v); }
 bool chirart_get_bool(Var *v) { return v->getBool(); }
-Var *chirart_add(Var *l, Var *r) { return Var::Create(*l + *r); }
-Var *chirart_subtract(Var *l, Var *r) { return Var::Create(*l - *r); }
-Var *chirart_lt(Var *l, Var *r) { return Var::Create(*l < *r); }
-Var *chirart_display(Var *l) {
+void chirart_add(Var *v, Var *l, Var *r) { *v = *l + *r; }
+void chirart_subtract(Var *v, Var *l, Var *r) { *v = *l - *r; }
+void chirart_lt(Var *v, Var *l, Var *r) { *v = *l < *r; }
+void chirart_display(Var *v, Var *l) {
   l->Display();
-  return chirart_unspec();
+  chirart_unspec(v);
 }
 
-Var *chiracg_main(Env);
+void chiracg_main(Var *, Env);
 }
 
 int main() {
-  chiracg_main(nullptr);
+  Var r;
+  chiracg_main(&r, nullptr);
 }

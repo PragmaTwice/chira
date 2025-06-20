@@ -56,6 +56,15 @@ mlir::LLVM::CallOp makeLLVMFuncCall(llvm::StringRef func_name,
                                              args);
 }
 
+mlir::LLVM::AllocaOp allocVar(mlir::Operation *op,
+                              mlir::ConversionPatternRewriter &rewriter) {
+  auto ptr_type = mlir::LLVM::LLVMPointerType::get(rewriter.getContext(), 0);
+  auto array_size = rewriter.create<mlir::LLVM::ConstantOp>(
+      op->getLoc(), rewriter.getI64Type(), rewriter.getI64IntegerAttr(3));
+  return rewriter.create<mlir::LLVM::AllocaOp>(
+      op->getLoc(), ptr_type, rewriter.getI64Type(), array_size);
+}
+
 struct ConvertNumOp : mlir::ConvertOpToLLVMPattern<sir::NumOp> {
   using ConvertOpToLLVMPattern<sir::NumOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
@@ -63,14 +72,15 @@ struct ConvertNumOp : mlir::ConvertOpToLLVMPattern<sir::NumOp> {
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto num = op.getNum();
     if (auto i = llvm::dyn_cast<mlir::IntegerAttr>(num)) {
-      auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
+      auto void_type = mlir::LLVM::LLVMVoidType::get(getContext());
 
       auto constant = rewriter.create<mlir::LLVM::ConstantOp>(
           op->getLoc(), rewriter.getI64Type(),
           rewriter.getI64IntegerAttr(i.getInt()));
-      auto call =
-          makeLLVMFuncCall("chirart_int", op, rewriter, ptr_type, {constant});
-      rewriter.replaceOp(op, call);
+
+      auto var = allocVar(op, rewriter);
+      makeLLVMFuncCall("chirart_int", op, rewriter, void_type, {var, constant});
+      rewriter.replaceOp(op, var);
       return mlir::success();
     }
 
@@ -83,10 +93,10 @@ struct ConvertUnspecOp : mlir::ConvertOpToLLVMPattern<sir::UnspecifiedOp> {
   mlir::LogicalResult
   matchAndRewrite(sir::UnspecifiedOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
-
-    auto call = makeLLVMFuncCall("chirart_unspec", op, rewriter, ptr_type, {});
-    rewriter.replaceOp(op, call);
+    auto void_type = mlir::LLVM::LLVMVoidType::get(getContext());
+    auto var = allocVar(op, rewriter);
+    makeLLVMFuncCall("chirart_unspec", op, rewriter, void_type, {var});
+    rewriter.replaceOp(op, var);
     return mlir::success();
   }
 };
@@ -123,23 +133,34 @@ struct ConvertEnvStoreOp : mlir::ConvertOpToLLVMPattern<sir::EnvStoreOp> {
   }
 };
 
+struct ConvertSetOp : mlir::ConvertOpToLLVMPattern<sir::SetOp> {
+  using ConvertOpToLLVMPattern<sir::SetOp>::ConvertOpToLLVMPattern;
+  mlir::LogicalResult
+  matchAndRewrite(sir::SetOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto call = makeLLVMFuncCall("chirart_set", op, rewriter, getVoidType(),
+                                 {adaptor.getVar(), adaptor.getValue()});
+    rewriter.replaceOp(op, call);
+    return mlir::success();
+  }
+};
+
 struct ConvertClosureFromEnvOp
     : mlir::ConvertOpToLLVMPattern<sir::ClosureFromEnvOp> {
   using ConvertOpToLLVMPattern<sir::ClosureFromEnvOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
   matchAndRewrite(sir::ClosureFromEnvOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
     auto env_type = llvm::dyn_cast<sir::EnvType>(op.getEnv().getType());
     if (!env_type) {
       llvm_unreachable("should be an env type");
     }
     auto cap_size = rewriter.create<mlir::LLVM::ConstantOp>(
         op->getLoc(), rewriter.getI64Type(), env_type.getSize());
-    auto call =
-        makeLLVMFuncCall("chirart_closure", op, rewriter, ptr_type,
-                         {adaptor.getLambda(), adaptor.getEnv(), cap_size});
-    rewriter.replaceOp(op, call);
+    auto var = allocVar(op, rewriter);
+    makeLLVMFuncCall("chirart_closure", op, rewriter, getVoidType(),
+                     {var, adaptor.getLambda(), adaptor.getEnv(), cap_size});
+    rewriter.replaceOp(op, var);
     return mlir::success();
   }
 };
@@ -162,21 +183,21 @@ struct ConvertArithPrimOp : mlir::ConvertOpToLLVMPattern<sir::ArithPrimOp> {
   matchAndRewrite(sir::ArithPrimOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto opcode = adaptor.getOp().getValue();
-    auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto var = allocVar(op, rewriter);
+    std::vector<mlir::Value> args{var};
+    std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
+              std::back_inserter(args));
     if (opcode == "+") {
-      auto call = makeLLVMFuncCall("chirart_add", op, rewriter, ptr_type,
-                                   adaptor.getArgs());
-      rewriter.replaceOp(op, call);
+      makeLLVMFuncCall("chirart_add", op, rewriter, getVoidType(), args);
+      rewriter.replaceOp(op, var);
       return mlir::success();
     } else if (opcode == "-") {
-      auto call = makeLLVMFuncCall("chirart_subtract", op, rewriter, ptr_type,
-                                   adaptor.getArgs());
-      rewriter.replaceOp(op, call);
+      makeLLVMFuncCall("chirart_subtract", op, rewriter, getVoidType(), args);
+      rewriter.replaceOp(op, var);
       return mlir::success();
     } else if (opcode == "<") {
-      auto call = makeLLVMFuncCall("chirart_lt", op, rewriter, ptr_type,
-                                   adaptor.getArgs());
-      rewriter.replaceOp(op, call);
+      makeLLVMFuncCall("chirart_lt", op, rewriter, getVoidType(), args);
+      rewriter.replaceOp(op, var);
       return mlir::success();
     }
 
@@ -190,11 +211,13 @@ struct ConvertIOPrimOp : mlir::ConvertOpToLLVMPattern<sir::IOPrimOp> {
   matchAndRewrite(sir::IOPrimOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto opcode = adaptor.getOp().getValue();
-    auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
+    auto var = allocVar(op, rewriter);
+    std::vector<mlir::Value> args{var};
+    std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
+              std::back_inserter(args));
     if (opcode == "display") {
-      auto call = makeLLVMFuncCall("chirart_display", op, rewriter, ptr_type,
-                                   adaptor.getArgs());
-      rewriter.replaceOp(op, call);
+      makeLLVMFuncCall("chirart_display", op, rewriter, getVoidType(), args);
+      rewriter.replaceOp(op, var);
       return mlir::success();
     }
 
@@ -213,13 +236,16 @@ struct ConvertCallOp : mlir::ConvertOpToLLVMPattern<sir::CallOp> {
     auto env = makeLLVMFuncCall("chirart_get_caps", op, rewriter, ptr_type,
                                 {adaptor.getCallee()});
     std::vector<mlir::Value> args{lambda.getResult()};
+    auto var = allocVar(op, rewriter);
+    args.push_back(var);
+    args.push_back(env.getResult());
     std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
               std::back_inserter(args));
-    args.push_back(env.getResult());
     auto func_type = mlir::LLVM::LLVMFunctionType::get(
-        ptr_type, std::vector<mlir::Type>(args.size() - 1, ptr_type));
+        getVoidType(), std::vector<mlir::Type>(args.size() - 1, ptr_type));
 
-    rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, func_type, args);
+    rewriter.create<mlir::LLVM::CallOp>(op->getLoc(), func_type, args);
+    rewriter.replaceOp(op, var);
     return mlir::success();
   }
 };
@@ -236,8 +262,9 @@ struct ConvertEnvOp : mlir::ConvertOpToLLVMPattern<sir::EnvOp> {
     }
     auto n = rewriter.create<mlir::LLVM::ConstantOp>(
         op->getLoc(), rewriter.getI64Type(), env_type.getSize());
-    auto call = makeLLVMFuncCall("chirart_env", op, rewriter, ptr_type, {n});
-    rewriter.replaceOp(op, call);
+    auto env = rewriter.create<mlir::LLVM::AllocaOp>(op->getLoc(), ptr_type,
+                                                     ptr_type, n);
+    rewriter.replaceOp(op, env);
     return mlir::success();
   }
 };
@@ -284,11 +311,11 @@ struct SIRToLLVMConversionPass
     mlir::ConversionTarget target(*context);
     target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 
-    patterns
-        .add<ConvertNumOp, ConvertUnspecOp, ConvertEnvLoadOp, ConvertAsBoolOp,
-             ConvertArithPrimOp, ConvertIOPrimOp, ConvertCallOp, ConvertEnvOp,
-             ConvertEnvStoreOp, ConvertClosureFromEnvOp, ConvertFuncRefOp>(
-            converter);
+    patterns.add<ConvertNumOp, ConvertUnspecOp, ConvertEnvLoadOp,
+                 ConvertAsBoolOp, ConvertArithPrimOp, ConvertIOPrimOp,
+                 ConvertCallOp, ConvertEnvOp, ConvertEnvStoreOp,
+                 ConvertClosureFromEnvOp, ConvertFuncRefOp, ConvertSetOp>(
+        converter);
     mlir::cf::populateControlFlowToLLVMConversionPatterns(converter, patterns);
     mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
 
