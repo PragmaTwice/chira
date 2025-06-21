@@ -17,7 +17,7 @@
 set -e
 
 usage() {
-    echo "Usage: $0 <object file> <path of libc> [<path of dynamic loader>]"
+    echo "Usage: $0 <object file> [<path of libc>] [<path of dynamic loader>]"
     exit 1
 }
 
@@ -34,7 +34,7 @@ EXE_FILE=$(basename "$OBJ_FILE" .o)
 
 LIBC_DIR=$2
 if [ -z "$LIBC_DIR" ]; then
-    usage
+    LIBC_DIR=$( ldd $(which ld) | grep "libc\.so" | awk '{print $3}' | xargs dirname )
 fi
 if [ ! -d "$LIBC_DIR" ]; then
     echo "Error: $2 is not a valid directory"
