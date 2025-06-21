@@ -77,6 +77,12 @@ llvm::cl::opt<bool> OutputLLVM(
         "transform the input program to LLVM IR and output it in text form"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
 
+llvm::cl::opt<bool> OutputLinkedLLVM(
+    "m",
+    llvm::cl::desc("transform the input program to LLVM IR, link it with "
+                   "chirart and output it in text form"),
+    llvm::cl::init(false), llvm::cl::cat(CLICat));
+
 llvm::cl::opt<size_t>
     OptimizationLevel("O",
                       llvm::cl::desc("optimization level (0-3, default: 3)"),
@@ -224,6 +230,11 @@ int main(int argc, char *argv[]) {
   if (llvm::Linker::linkModules(*llvm_module, std::move(chirart))) {
     llvm::errs() << "failed to link chirart\n";
     return 1;
+  }
+
+  if (OutputLinkedLLVM) {
+    llvm_module->print(os, nullptr);
+    return 0;
   }
 
   llvm::OptimizationLevel opt_levels[] = {
