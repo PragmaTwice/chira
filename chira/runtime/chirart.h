@@ -115,8 +115,12 @@ public:
   }
 
   [[gnu::always_inline]] double getFloat() const {
-    assert(isFloat(), "Var is not a float");
-    return data.float_;
+    assert(isFloat() || isInt(),
+           "Var is not a floating point number or integer");
+    if (isFloat())
+      return data.float_;
+    else
+      return data.int_;
   }
 
   [[gnu::always_inline]] bool getBool() const {
@@ -142,30 +146,98 @@ public:
   [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() + r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() + r.getFloat());
     }
 
-    unreachable("Not implemented yet");
+    unreachable("Invalid type to perform addition");
   }
 
   [[gnu::always_inline]] friend Var operator-(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() - r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() - r.getFloat());
     }
 
-    unreachable("Not implemented yet");
+    unreachable("Invalid type to perform subtraction");
+  }
+
+  [[gnu::always_inline]] friend Var operator*(const Var &l, const Var &r) {
+    if (l.isInt() && r.isInt()) {
+      return Var(l.getInt() * r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() * r.getFloat());
+    }
+
+    unreachable("Invalid type to perform multiplication");
+  }
+
+  [[gnu::always_inline]] friend Var operator/(const Var &l, const Var &r) {
+    if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      assert(r.getFloat() != 0, "Division by zero");
+      return Var(l.getFloat() / r.getFloat());
+    }
+
+    unreachable("Invalid type to perform division");
   }
 
   [[gnu::always_inline]] friend Var operator<(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() < r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() < r.getFloat());
     }
 
-    unreachable("Not implemented yet");
+    unreachable("Invalid type to perform comparison");
+  }
+
+  [[gnu::always_inline]] friend Var operator<=(const Var &l, const Var &r) {
+    if (l.isInt() && r.isInt()) {
+      return Var(l.getInt() <= r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() <= r.getFloat());
+    }
+
+    unreachable("Invalid type to perform comparison");
+  }
+
+  [[gnu::always_inline]] friend Var operator>(const Var &l, const Var &r) {
+    if (l.isInt() && r.isInt()) {
+      return Var(l.getInt() > r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() > r.getFloat());
+    }
+
+    unreachable("Invalid type to perform comparison");
+  }
+
+  [[gnu::always_inline]] friend Var operator>=(const Var &l, const Var &r) {
+    if (l.isInt() && r.isInt()) {
+      return Var(l.getInt() >= r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() >= r.getFloat());
+    }
+
+    unreachable("Invalid type to perform comparison");
+  }
+
+  [[gnu::always_inline]] friend Var operator==(const Var &l, const Var &r) {
+    if (l.isInt() && r.isInt()) {
+      return Var(l.getInt() == r.getInt());
+    } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return Var(l.getFloat() == r.getFloat());
+    }
+
+    unreachable("Invalid type to perform equality check");
   }
 
   [[gnu::always_inline]] void Display() const {
     if (isInt()) {
       fprintf(stdout, "%ld", getInt());
+      return;
+    } else if (isFloat()) {
+      fprintf(stdout, "%lf", getFloat());
       return;
     }
 
@@ -174,6 +246,8 @@ public:
 };
 
 static_assert(sizeof(Var) == 24);
+
+inline void Newline() { fprintf(stdout, "\n"); }
 
 } // namespace chirart
 

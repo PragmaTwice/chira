@@ -18,7 +18,7 @@ extern "C" {
 void chirart_unspec(Var *r) { *r = Var(); }
 
 void chirart_int(Var *r, int64_t num) { *r = Var(num); }
-
+void chirart_float(Var *r, double num) { *r = Var(num); }
 void chirart_closure(Var *r, Lambda func_ptr, Env caps, size_t cap_size) {
   *r = Var(func_ptr, caps, cap_size);
 }
@@ -35,10 +35,20 @@ bool chirart_get_bool(const Var *v) { return v->getBool(); }
 
 void chirart_add(Var *v, const Var *l, const Var *r) { *v = *l + *r; }
 void chirart_subtract(Var *v, const Var *l, const Var *r) { *v = *l - *r; }
+void chirart_multiply(Var *v, const Var *l, const Var *r) { *v = *l * *r; }
+void chirart_divide(Var *v, const Var *l, const Var *r) { *v = *l / *r; }
 void chirart_lt(Var *v, const Var *l, const Var *r) { *v = *l < *r; }
+void chirart_le(Var *v, const Var *l, const Var *r) { *v = *l <= *r; }
+void chirart_gt(Var *v, const Var *l, const Var *r) { *v = *l > *r; }
+void chirart_ge(Var *v, const Var *l, const Var *r) { *v = *l >= *r; }
+void chirart_eq(Var *v, const Var *l, const Var *r) { *v = *l == *r; }
 
 void chirart_display(Var *v, const Var *l) {
   l->Display();
+  chirart_unspec(v);
+}
+void chirart_newline(Var *v) {
+  Newline();
   chirart_unspec(v);
 }
 

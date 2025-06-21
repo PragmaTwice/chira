@@ -25,6 +25,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -72,20 +73,26 @@ struct ConvertNumOp : mlir::ConvertOpToLLVMPattern<sir::NumOp> {
   matchAndRewrite(sir::NumOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto num = op.getNum();
+    auto var = allocVar(op, rewriter);
     if (auto i = llvm::dyn_cast<mlir::IntegerAttr>(num)) {
-      auto void_type = mlir::LLVM::LLVMVoidType::get(getContext());
-
       auto constant = rewriter.create<mlir::LLVM::ConstantOp>(
-          op->getLoc(), rewriter.getI64Type(),
-          rewriter.getI64IntegerAttr(i.getInt()));
+          op->getLoc(), rewriter.getI64Type(), i);
 
-      auto var = allocVar(op, rewriter);
-      makeLLVMFuncCall("chirart_int", op, rewriter, void_type, {var, constant});
+      makeLLVMFuncCall("chirart_int", op, rewriter, getVoidType(),
+                       {var, constant});
+      rewriter.replaceOp(op, var);
+      return mlir::success();
+    } else if (auto f = llvm::dyn_cast<mlir::FloatAttr>(num)) {
+      auto constant = rewriter.create<mlir::LLVM::ConstantOp>(
+          op->getLoc(), rewriter.getF64Type(), f);
+
+      makeLLVMFuncCall("chirart_float", op, rewriter, getVoidType(),
+                       {var, constant});
       rewriter.replaceOp(op, var);
       return mlir::success();
     }
 
-    llvm_unreachable("not implemeted for floating point numbers yet");
+    llvm_unreachable("attribute type not supported");
   }
 };
 
@@ -188,16 +195,17 @@ struct ConvertArithPrimOp : mlir::ConvertOpToLLVMPattern<sir::ArithPrimOp> {
     std::vector<mlir::Value> args{var};
     std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
               std::back_inserter(args));
-    if (opcode == "+") {
-      makeLLVMFuncCall("chirart_add", op, rewriter, getVoidType(), args);
-      rewriter.replaceOp(op, var);
-      return mlir::success();
-    } else if (opcode == "-") {
-      makeLLVMFuncCall("chirart_subtract", op, rewriter, getVoidType(), args);
-      rewriter.replaceOp(op, var);
-      return mlir::success();
-    } else if (opcode == "<") {
-      makeLLVMFuncCall("chirart_lt", op, rewriter, getVoidType(), args);
+
+    std::map<llvm::StringRef, llvm::StringRef> arith_ops = {
+        {"+", "chirart_add"},      {"-", "chirart_subtract"},
+        {"*", "chirart_multiply"}, {"/", "chirart_divide"},
+        {"<", "chirart_lt"},       {"<=", "chirart_le"},
+        {">", "chirart_gt"},       {">=", "chirart_ge"},
+        {"=", "chirart_eq"},
+    };
+
+    if (auto it = arith_ops.find(opcode); it != arith_ops.end()) {
+      makeLLVMFuncCall(it->second, op, rewriter, getVoidType(), args);
       rewriter.replaceOp(op, var);
       return mlir::success();
     }
@@ -216,8 +224,13 @@ struct ConvertIOPrimOp : mlir::ConvertOpToLLVMPattern<sir::IOPrimOp> {
     std::vector<mlir::Value> args{var};
     std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
               std::back_inserter(args));
-    if (opcode == "display") {
-      makeLLVMFuncCall("chirart_display", op, rewriter, getVoidType(), args);
+    std::map<llvm::StringRef, llvm::StringRef> io_ops = {
+        {"display", "chirart_display"},
+        {"newline", "chirart_newline"},
+    };
+
+    if (auto it = io_ops.find(opcode); it != io_ops.end()) {
+      makeLLVMFuncCall(it->second, op, rewriter, getVoidType(), args);
       rewriter.replaceOp(op, var);
       return mlir::success();
     }

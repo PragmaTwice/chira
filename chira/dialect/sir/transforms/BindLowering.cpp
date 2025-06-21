@@ -66,6 +66,22 @@ struct ConvertBindOp : public mlir::OpRewritePattern<sir::BindOp> {
   }
 };
 
+struct ConvertBindRefOp : public mlir::OpRewritePattern<sir::BindRefOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(sir::BindRefOp op,
+                  mlir::PatternRewriter &rewriter) const override {
+    auto lambda_type = sir::LambdaType::get(getContext());
+    auto ref = rewriter.create<sir::FuncRefOp>(op->getLoc(), lambda_type,
+                                               op.getFunc());
+    auto var_type = sir::VarType::get(getContext());
+    rewriter.replaceOpWithNewOp<sir::BindOp>(
+        op, var_type, mlir::ValueRange{ref}, op.getCaps());
+    return mlir::success();
+  }
+};
+
 struct BindLoweringPass
     : public mlir::PassWrapper<BindLoweringPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
@@ -75,7 +91,7 @@ struct BindLoweringPass
 
     mlir::RewritePatternSet patterns(context);
 
-    patterns.add<ConvertBindOp>(context);
+    patterns.add<ConvertBindOp, ConvertBindRefOp>(context);
 
     if (failed(mlir::applyPatternsGreedily(module, std::move(patterns))))
       signalPassFailure();
