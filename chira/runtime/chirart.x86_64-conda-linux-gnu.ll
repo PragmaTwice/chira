@@ -272,7 +272,7 @@ define dso_local void @chirart_add(ptr nocapture noundef writeonly %0, ptr nocap
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_subtract(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
+define dso_local void @chirart_sub(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
   %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !22
   %5 = icmp eq i64 %4, 1
   br i1 %5, label %6, label %9
@@ -336,7 +336,7 @@ define dso_local void @chirart_subtract(ptr nocapture noundef writeonly %0, ptr 
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_multiply(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
+define dso_local void @chirart_mul(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
   %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !25
   %5 = icmp eq i64 %4, 1
   br i1 %5, label %6, label %9
@@ -400,7 +400,7 @@ define dso_local void @chirart_multiply(ptr nocapture noundef writeonly %0, ptr 
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_divide(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
+define dso_local void @chirart_div(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
   %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !28
   %5 = add i64 %4, -1
   %6 = icmp ult i64 %5, 2

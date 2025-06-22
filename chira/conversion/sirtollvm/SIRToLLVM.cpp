@@ -196,21 +196,10 @@ struct ConvertArithPrimOp : mlir::ConvertOpToLLVMPattern<sir::ArithPrimOp> {
     std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
               std::back_inserter(args));
 
-    std::map<llvm::StringRef, llvm::StringRef> arith_ops = {
-        {"+", "chirart_add"},      {"-", "chirart_subtract"},
-        {"*", "chirart_multiply"}, {"/", "chirart_divide"},
-        {"<", "chirart_lt"},       {"<=", "chirart_le"},
-        {">", "chirart_gt"},       {">=", "chirart_ge"},
-        {"=", "chirart_eq"},
-    };
-
-    if (auto it = arith_ops.find(opcode); it != arith_ops.end()) {
-      makeLLVMFuncCall(it->second, op, rewriter, getVoidType(), args);
-      rewriter.replaceOp(op, var);
-      return mlir::success();
-    }
-
-    llvm_unreachable("not implemented for this arith prim op yet");
+    makeLLVMFuncCall("chirart_" + opcode.str(), op, rewriter, getVoidType(),
+                     args);
+    rewriter.replaceOp(op, var);
+    return mlir::success();
   }
 };
 
@@ -224,18 +213,11 @@ struct ConvertIOPrimOp : mlir::ConvertOpToLLVMPattern<sir::IOPrimOp> {
     std::vector<mlir::Value> args{var};
     std::copy(adaptor.getArgs().begin(), adaptor.getArgs().end(),
               std::back_inserter(args));
-    std::map<llvm::StringRef, llvm::StringRef> io_ops = {
-        {"display", "chirart_display"},
-        {"newline", "chirart_newline"},
-    };
 
-    if (auto it = io_ops.find(opcode); it != io_ops.end()) {
-      makeLLVMFuncCall(it->second, op, rewriter, getVoidType(), args);
-      rewriter.replaceOp(op, var);
-      return mlir::success();
-    }
-
-    llvm_unreachable("not implemented for this IO prim op yet");
+    makeLLVMFuncCall("chirart_" + opcode.str(), op, rewriter, getVoidType(),
+                     args);
+    rewriter.replaceOp(op, var);
+    return mlir::success();
   }
 };
 

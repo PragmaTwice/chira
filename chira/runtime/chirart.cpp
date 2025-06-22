@@ -34,9 +34,9 @@ void chirart_env_store(Env env, size_t idx, Var *v) { env[idx] = v; }
 bool chirart_get_bool(const Var *v) { return v->getBool(); }
 
 void chirart_add(Var *v, const Var *l, const Var *r) { *v = *l + *r; }
-void chirart_subtract(Var *v, const Var *l, const Var *r) { *v = *l - *r; }
-void chirart_multiply(Var *v, const Var *l, const Var *r) { *v = *l * *r; }
-void chirart_divide(Var *v, const Var *l, const Var *r) { *v = *l / *r; }
+void chirart_sub(Var *v, const Var *l, const Var *r) { *v = *l - *r; }
+void chirart_mul(Var *v, const Var *l, const Var *r) { *v = *l * *r; }
+void chirart_div(Var *v, const Var *l, const Var *r) { *v = *l / *r; }
 void chirart_lt(Var *v, const Var *l, const Var *r) { *v = *l < *r; }
 void chirart_le(Var *v, const Var *l, const Var *r) { *v = *l <= *r; }
 void chirart_gt(Var *v, const Var *l, const Var *r) { *v = *l > *r; }

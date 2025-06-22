@@ -30,6 +30,36 @@ namespace chira {
 
 namespace {
 
+struct PrimOp {
+  enum Kind { Arith, IO };
+
+  llvm::StringRef symbol;
+  llvm::StringRef name;
+  Kind kind;
+  size_t num_args;
+
+  PrimOp(llvm::StringRef symbol, llvm::StringRef name, Kind kind,
+         size_t num_args)
+      : symbol(symbol), name(name), kind(kind), num_args(num_args) {}
+};
+
+static std::vector<PrimOp> prim_list = {
+    {"+", "add", PrimOp::Arith, 2},       {"-", "sub", PrimOp::Arith, 2},
+    {"*", "mul", PrimOp::Arith, 2},       {"/", "div", PrimOp::Arith, 2},
+    {"<", "lt", PrimOp::Arith, 2},        {">", "gt", PrimOp::Arith, 2},
+    {"<=", "le", PrimOp::Arith, 2},       {">=", "ge", PrimOp::Arith, 2},
+    {"=", "eq", PrimOp::Arith, 2},        {"display", "display", PrimOp::IO, 1},
+    {"newline", "newline", PrimOp::IO, 0}};
+
+static std::map<llvm::StringRef, PrimOp> prim_map = [] {
+  std::map<llvm::StringRef, PrimOp> map;
+  for (const auto &op : prim_list) {
+    map.emplace(op.symbol, op);
+  }
+
+  return map;
+}();
+
 struct LexScope {
   enum Kind { Global, Local, Closure };
 
@@ -50,6 +80,19 @@ struct LexScope {
   }
   LexScope(mlir::OpBuilder &builder) : builder(builder) {}
   LexScope(const LexScope &) = delete;
+
+  bool exists(llvm::StringRef id) {
+    auto *scope = this;
+    while (scope) {
+      auto it = scope->current_scope.find(id);
+      if (it != scope->current_scope.end()) {
+        return true;
+      }
+      scope = scope->parent_scope;
+    }
+
+    return false;
+  }
 
   mlir::Value get(llvm::StringRef id) {
     auto *scope = this;
@@ -180,17 +223,12 @@ struct SExprToSIRConversionPass
     llvm_unreachable("unexpected operation type");
   }
 
-  bool isArithPrimOp(llvm::StringRef id) {
-    return id == "+" || id == "-" || id == "*" || id == "/" || id == "=" ||
-           id == "<" || id == "<=" || id == ">" || id == ">=";
-  }
+  std::optional<PrimOp> getPrimOp(llvm::StringRef id) {
+    if (auto it = prim_map.find(id); it != prim_map.end()) {
+      return it->second;
+    }
 
-  bool isIOPrimOp(llvm::StringRef id) {
-    return id == "display" || id == "newline";
-  }
-
-  bool isPrimOp(llvm::StringRef id) {
-    return isArithPrimOp(id) || isIOPrimOp(id);
+    return std::nullopt;
   }
 
   mlir::Value visitExpr(sexpr::SOp expr, mlir::OpBuilder &builder,
@@ -204,20 +242,21 @@ struct SExprToSIRConversionPass
 
     auto first = exprs[0].getDefiningOp();
     if (auto opcode = llvm::dyn_cast<sexpr::IdOp>(first)) {
-      if (opcode.getId() == "define") {
+      auto id = opcode.getId().getValue();
+      if (id == "define") {
         return visitDefine(expr, builder, scope);
-      } else if (isPrimOp(opcode.getId())) {
-        return visitPrim(opcode.getId(), expr, builder, scope);
-      } else if (opcode.getId() == "if") {
+      } else if (id == "if") {
         return visitIf(expr, builder, scope);
-      } else if (opcode.getId() == "begin") {
+      } else if (id == "begin") {
         return visitBegin(expr, builder, scope);
-      } else if (opcode.getId() == "lambda") {
+      } else if (id == "lambda") {
         return visitLambda(expr, builder, scope);
-      } else if (opcode.getId() == "set!") {
+      } else if (id == "set!") {
         return visitSet(expr, builder, scope);
-      } else if (opcode.getId() == "let") {
+      } else if (id == "let") {
         return visitLet(expr, builder, scope);
+      } else if (auto p = getPrimOp(id); p && !scope.exists(id)) {
+        return visitPrim(*p, expr, builder, scope);
       }
     }
 
@@ -502,9 +541,14 @@ struct SExprToSIRConversionPass
     }
   }
 
-  mlir::Value visitPrim(llvm::StringRef id, sexpr::SOp expr,
+  mlir::Value visitPrim(const PrimOp &p, sexpr::SOp expr,
                         mlir::OpBuilder &builder, LexScope &scope) {
     auto exprs = expr.getExprs();
+    if (exprs.size() - 1 != p.num_args) {
+      mlir::emitError(expr.getLoc()) << "expected " << p.num_args
+                                     << " arguments in (" << p.symbol << " ..)";
+      return {};
+    }
 
     std::vector<mlir::Value> operands;
     for (auto e : exprs.drop_front(1)) {
@@ -516,11 +560,11 @@ struct SExprToSIRConversionPass
     }
 
     auto var_type = sir::VarType::get(&getContext());
-    auto symbol = mlir::StringAttr::get(builder.getContext(), id);
-    if (isArithPrimOp(id)) {
+    auto symbol = mlir::StringAttr::get(builder.getContext(), p.name);
+    if (p.kind == PrimOp::Arith) {
       return builder.create<sir::ArithPrimOp>(expr->getLoc(), var_type, symbol,
                                               operands);
-    } else if (isIOPrimOp(id)) {
+    } else if (p.kind == PrimOp::IO) {
       return builder.create<sir::IOPrimOp>(expr->getLoc(), var_type, symbol,
                                            operands);
     }
