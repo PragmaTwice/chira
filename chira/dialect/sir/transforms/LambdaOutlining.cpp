@@ -49,9 +49,14 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
     func.getBody().takeBody(op.getBody());
 
     rewriter.restoreInsertionPoint(ip);
+    auto lambda_type = sir::LambdaType::get(
+        getContext(), func.getBody().getNumArguments() - op.getCaps().size(),
+        op.getCaps().size());
+    auto func_ref =
+        rewriter.create<sir::FuncRefOp>(op->getLoc(), lambda_type, symbol);
     auto var_type = sir::VarType::get(getContext());
-    auto bind = rewriter.replaceOpWithNewOp<sir::BindRefOp>(
-        op, var_type, symbol, op.getCaps());
+    auto bind = rewriter.replaceOpWithNewOp<sir::BindOp>(
+        op, var_type, mlir::ValueRange{func_ref}, op.getCaps());
     if (auto dn = op->getAttr("defined_name")) {
       bind->setAttr("defined_name", dn);
     }
@@ -76,13 +81,13 @@ struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
     auto name = "lambda_" + std::to_string(lambda_count++);
     auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
-    auto func =
-        rewriter.create<sir::FuncOp>(op->getLoc(), name_attr, op.getCapSize());
+    auto func = rewriter.create<sir::FuncOp>(
+        op->getLoc(), name_attr,
+        rewriter.getI64IntegerAttr(op.getType().getCapSize()));
     func.getBody().takeBody(op.getBody());
 
     rewriter.restoreInsertionPoint(ip);
-    auto lambda_type = sir::LambdaType::get(getContext());
-    rewriter.replaceOpWithNewOp<sir::FuncRefOp>(op, lambda_type, symbol);
+    rewriter.replaceOpWithNewOp<sir::FuncRefOp>(op, op.getType(), symbol);
     return mlir::success();
   }
 

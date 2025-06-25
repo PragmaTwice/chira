@@ -38,10 +38,10 @@ struct ConvertSelfRecursive : mlir::OpRewritePattern<sir::ClosureOp> {
       return rewriter.notifyMatchFailure(op, "not a self-recursive closure");
     }
 
-    auto lambda_type = sir::LambdaType::get(getContext());
-    auto i64 = mlir::IntegerType::get(getContext(), 64);
-    auto lambda = rewriter.create<sir::LambdaOp>(
-        op->getLoc(), lambda_type, mlir::IntegerAttr::get(i64, caps.size()));
+    auto arg_size = op.getBody().getNumArguments();
+    auto lambda_type =
+        sir::LambdaType::get(getContext(), arg_size - caps.size(), caps.size());
+    auto lambda = rewriter.create<sir::LambdaOp>(op->getLoc(), lambda_type);
     lambda.getBody().takeBody(op.getBody());
 
     auto var_type = sir::VarType::get(getContext());
@@ -70,11 +70,11 @@ struct ConvertUnresolvedName : mlir::OpRewritePattern<sir::UnresolvedNameOp> {
         if (auto attr = closure->getAttr("defined_name");
             attr && llvm::dyn_cast<mlir::StringAttr>(attr) == op.getName()) {
           auto caps = closure.getCaps();
-          auto lambda_type = sir::LambdaType::get(getContext());
-          auto i64 = mlir::IntegerType::get(getContext(), 64);
-          auto lambda = rewriter.create<sir::LambdaOp>(
-              op->getLoc(), lambda_type,
-              mlir::IntegerAttr::get(i64, caps.size()));
+          auto arg_size = closure.getBody().getNumArguments();
+          auto lambda_type = sir::LambdaType::get(
+              getContext(), arg_size - caps.size(), caps.size());
+          auto lambda =
+              rewriter.create<sir::LambdaOp>(op->getLoc(), lambda_type);
           lambda.getBody().takeBody(closure.getBody());
 
           auto var_type = sir::VarType::get(getContext());

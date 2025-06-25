@@ -18,6 +18,7 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/IR/Value.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include <cstddef>
 
@@ -34,12 +35,9 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     auto cap_size = op.getCapSize().getUInt();
     auto param_size = op.getBody().getNumArguments() - cap_size;
     auto var_type = sir::VarType::get(getContext());
-    std::vector<mlir::Type> arg_types{var_type};
     auto env_type = sir::EnvType::get(getContext(), cap_size);
-    arg_types.push_back(env_type);
-    for (size_t i = 0; i < param_size; ++i) {
-      arg_types.push_back(var_type);
-    }
+    auto args_type = sir::ArgsType::get(getContext(), param_size);
+    std::vector<mlir::Type> arg_types{var_type, args_type, env_type};
     auto type = rewriter.getFunctionType(arg_types, {});
     std::string name = "chiracg_" + op.getSymName().getValue().str();
     auto func = rewriter.create<mlir::func::FuncOp>(op->getLoc(), name, type);
@@ -48,8 +46,18 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     mlir::OpBuilder builder(getContext());
     builder.setInsertionPointToStart(&body->front());
     mlir::Value env = body->insertArgument(0u, env_type, op.getLoc());
+    mlir::Value args = body->insertArgument(0u, args_type, op.getLoc());
     body->insertArgument(0u, var_type, op.getLoc());
-    size_t cap_begin = param_size + 2;
+    size_t param_begin = 3;
+    for (size_t i = param_begin; i < param_begin + param_size; ++i) {
+      auto arg = body->getArgument(i);
+
+      auto env_arg = builder.create<sir::ArgsLoadOp>(
+          arg.getLoc(), var_type, args,
+          builder.getI64IntegerAttr(i - param_begin));
+      arg.replaceAllUsesWith(env_arg);
+    }
+    size_t cap_begin = param_begin + param_size;
     for (size_t i = cap_begin; i < cap_begin + cap_size; ++i) {
       auto arg = body->getArgument(i);
 
@@ -58,7 +66,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
           builder.getI64IntegerAttr(i - cap_begin));
       arg.replaceAllUsesWith(env_arg);
     }
-    body->front().eraseArguments(cap_begin, cap_size);
+    body->front().eraseArguments(param_begin, param_size + cap_size);
 
     func.getBody().takeBody(op.getBody());
     rewriter.replaceOp(op, func);

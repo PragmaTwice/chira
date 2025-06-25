@@ -34,20 +34,33 @@ inline namespace chirart {
   std::abort();
 }
 
-using Lambda = void *;
-
 struct Var;
+struct ArgList;
+
+using Args = ArgList *;
 using Env = Var **;
+using Lambda = void (*)(Var *, Args, Env);
 
 struct Var {
 private:
   enum Tag : size_t {
-    UNSPEC = 0,
-    INT = 1,
-    FLOAT = 2,
-    BOOL = 3,
+    UNSPEC = 0, // nil
+    INT = 1,    // { i64 }
+    FLOAT = 2,  // { f64 }
+    BOOL = 3,   // { bool }
+    STRING = 4, // { data ptr, size i64 }
+    PAIR = 5,   // { left ptr, right ptr }
+    NIL = 6,    // nil
+    SYMBOL = 7, // { data ptr, size i64 }
 
-    CLOSURE_BEGIN = 1 << 16,
+    // param_size: 1bit flag (param_size >> 15) | 15bit size (param_size &
+    // 0x7fff), if flag == 0, the provided arg size must equal to size if flag
+    // == 1, the provided arg size must equal to or larger than size
+    PRIM_OP_BEGIN =
+        1 << 16, // PRIM_OP_BEGIN + param_size, { func ptr, null ptr }
+    PRIM_OP_END = PRIM_OP_BEGIN + (1 << 16),
+    CLOSURE_BEGIN =
+        2 << 16, // CLOSURE_BEGIN + param_size, { func ptr, env ptr }
     CLOSURE_END = CLOSURE_BEGIN + (1 << 16),
   } tag;
 
@@ -56,9 +69,17 @@ private:
     double float_;
     bool bool_;
     struct {
-      Lambda func_ptr;
-      Env caps;
+      Lambda lambda;
+      Env env;
     } closure;
+    struct {
+      void *data;
+      size_t size;
+    } string;
+    struct {
+      Var *left;
+      Var *right;
+    } pair;
   } data;
 
   [[gnu::always_inline]] void copyData(const Var &other) {
@@ -68,11 +89,17 @@ private:
       data.float_ = other.data.float_;
     } else if (tag == BOOL) {
       data.bool_ = other.data.bool_;
-    } else if (tag >= CLOSURE_BEGIN && tag < CLOSURE_END) {
-      data.closure.func_ptr = other.data.closure.func_ptr;
-      data.closure.caps = other.data.closure.caps;
-    } else if (tag == UNSPEC) {
-      // nothing to copy for UNSPEC
+    } else if (tag >= PRIM_OP_BEGIN && tag < CLOSURE_END) {
+      data.closure.lambda = other.data.closure.lambda;
+      data.closure.env = other.data.closure.env;
+    } else if (tag == STRING || tag == SYMBOL) {
+      data.string.data = other.data.string.data;
+      data.string.size = other.data.string.size;
+    } else if (tag == PAIR) {
+      data.pair.left = other.data.pair.left;
+      data.pair.right = other.data.pair.right;
+    } else if (tag == NIL || tag == UNSPEC) {
+      // nothing to copy for NIL or UNSPEC
     } else {
       assert(false, "Invalid tag in Var");
     }
@@ -83,13 +110,18 @@ public:
   [[gnu::always_inline]] Var(int64_t v) : tag(INT) { data.int_ = v; }
   [[gnu::always_inline]] Var(double v) : tag(FLOAT) { data.float_ = v; }
   [[gnu::always_inline]] Var(bool v) : tag(BOOL) { data.bool_ = v; }
-  [[gnu::always_inline]] Var(Lambda func_ptr, Env caps, size_t cap_size)
-      : tag(Tag(CLOSURE_BEGIN + cap_size)) {
-    assert(cap_size < (1 << 16), "Too many closure captures");
-    data.closure.func_ptr = func_ptr;
-    data.closure.caps = caps;
+  [[gnu::always_inline]] Var(Lambda lambda, Env env, size_t param_size)
+      : tag(Tag(CLOSURE_BEGIN + param_size)) {
+    assert(param_size < (1 << 16), "Too many closure captures");
+    data.closure.lambda = lambda;
+    data.closure.env = env;
   }
-  [[gnu::always_inline]] Var(Lambda func_ptr) : Var(func_ptr, nullptr, 0) {}
+  [[gnu::always_inline]] Var(void *func_ptr, size_t param_size)
+      : tag(Tag(PRIM_OP_BEGIN + param_size)) {
+    assert(param_size < (1 << 16), "Too many closure captures");
+    data.closure.lambda = (Lambda)func_ptr;
+    data.closure.env = nullptr;
+  }
 
   [[gnu::always_inline]] Var(const Var &other) : tag(other.tag) {
     copyData(other);
@@ -108,6 +140,13 @@ public:
   [[gnu::always_inline]] bool isClosure() const {
     return tag >= CLOSURE_BEGIN && tag < CLOSURE_END;
   }
+  [[gnu::always_inline]] bool isString() const { return tag == STRING; }
+  [[gnu::always_inline]] bool isPrimOp() const {
+    return tag >= PRIM_OP_BEGIN && tag < PRIM_OP_END;
+  }
+  [[gnu::always_inline]] bool isPair() const { return tag == PAIR; }
+  [[gnu::always_inline]] bool isNil() const { return tag == NIL; }
+  [[gnu::always_inline]] bool isSymbol() const { return tag == SYMBOL; }
 
   [[gnu::always_inline]] int64_t getInt() const {
     assert(isInt(), "Var is not an integer");
@@ -128,19 +167,25 @@ public:
     return data.bool_;
   }
 
-  [[gnu::always_inline]] Lambda getFuncPtr() const {
-    assert(isClosure(), "Var is not a closure");
-    return data.closure.func_ptr;
+  [[gnu::always_inline]] Lambda getLambda() const {
+    assert(isClosure() || isPrimOp(),
+           "Var is not a closure or primary operation");
+    return data.closure.lambda;
   }
 
-  [[gnu::always_inline]] Env getCaps() const {
-    assert(isClosure(), "Var is not a closure");
-    return data.closure.caps;
+  [[gnu::always_inline]] Env getEnv() const {
+    assert(isClosure() || isPrimOp(),
+           "Var is not a closure or primary operation");
+    return data.closure.env;
   }
 
-  [[gnu::always_inline]] size_t getCapSize() const {
-    assert(isClosure(), "Var is not a closure");
-    return tag - CLOSURE_BEGIN;
+  [[gnu::always_inline]] size_t getParamSize() const {
+    assert(isClosure() || isPrimOp(),
+           "Var is not a closure or primary operation");
+    if (isClosure())
+      return tag - CLOSURE_BEGIN;
+    else
+      return tag - PRIM_OP_BEGIN;
   }
 
   [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
@@ -243,7 +288,37 @@ public:
 
     unreachable("Not implemented yet");
   }
+
+  [[gnu::always_inline]] inline Var operator()(Args args);
 };
+
+struct ArgList {
+  size_t size;
+  Var args[];
+};
+
+inline constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
+inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
+
+[[gnu::always_inline]] inline uint16_t MakeParamSize(bool flag, size_t size) {
+  assert(size < (1 << 15), "Parameter size too large");
+  return (flag ? PARAM_FLAG_BIT : 0) | (size & PARAM_VAL_MASK);
+}
+
+[[gnu::always_inline]] inline Var Var::operator()(Args args) {
+  Var res;
+
+  auto param_size = getParamSize();
+  if ((param_size & PARAM_FLAG_BIT) == 0) {
+    assert(args->size == (param_size & PARAM_VAL_MASK),
+           "Argument size mismatch");
+  } else {
+    assert(args->size >= (param_size & PARAM_VAL_MASK),
+           "Argument size mismatch");
+  }
+  getLambda()(&res, args, getEnv());
+  return res;
+}
 
 static_assert(sizeof(Var) == 24);
 

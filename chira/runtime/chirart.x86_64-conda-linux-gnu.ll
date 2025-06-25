@@ -7,24 +7,25 @@ target triple = "x86_64-conda-linux-gnu"
 %union.anon = type { %struct.anon }
 %struct.anon = type { ptr, ptr }
 
-@.str = private unnamed_addr constant [19 x i8] c"Invalid tag in Var\00", align 1
-@stderr = external local_unnamed_addr global ptr, align 8
-@.str.1 = private unnamed_addr constant [22 x i8] c"Assertion failed: %s\0A\00", align 1
+@.str = private unnamed_addr constant [23 x i8] c"Argument size mismatch\00", align 1
+@.str.1 = private unnamed_addr constant [19 x i8] c"Invalid tag in Var\00", align 1
 @.str.2 = private unnamed_addr constant [26 x i8] c"Too many closure captures\00", align 1
-@.str.3 = private unnamed_addr constant [21 x i8] c"Var is not a closure\00", align 1
-@.str.4 = private unnamed_addr constant [21 x i8] c"Var is not a boolean\00", align 1
-@.str.5 = private unnamed_addr constant [33 x i8] c"Invalid type to perform addition\00", align 1
-@.str.8 = private unnamed_addr constant [17 x i8] c"Unreachable: %s\0A\00", align 1
-@.str.9 = private unnamed_addr constant [36 x i8] c"Invalid type to perform subtraction\00", align 1
-@.str.10 = private unnamed_addr constant [39 x i8] c"Invalid type to perform multiplication\00", align 1
-@.str.11 = private unnamed_addr constant [17 x i8] c"Division by zero\00", align 1
-@.str.12 = private unnamed_addr constant [33 x i8] c"Invalid type to perform division\00", align 1
-@.str.13 = private unnamed_addr constant [35 x i8] c"Invalid type to perform comparison\00", align 1
-@.str.14 = private unnamed_addr constant [39 x i8] c"Invalid type to perform equality check\00", align 1
+@.str.3 = private unnamed_addr constant [42 x i8] c"Var is not a closure or primary operation\00", align 1
+@stderr = external local_unnamed_addr global ptr, align 8
+@.str.4 = private unnamed_addr constant [22 x i8] c"Assertion failed: %s\0A\00", align 1
+@.str.5 = private unnamed_addr constant [21 x i8] c"Var is not a boolean\00", align 1
+@.str.6 = private unnamed_addr constant [33 x i8] c"Invalid type to perform addition\00", align 1
+@.str.9 = private unnamed_addr constant [17 x i8] c"Unreachable: %s\0A\00", align 1
+@.str.10 = private unnamed_addr constant [36 x i8] c"Invalid type to perform subtraction\00", align 1
+@.str.11 = private unnamed_addr constant [39 x i8] c"Invalid type to perform multiplication\00", align 1
+@.str.12 = private unnamed_addr constant [17 x i8] c"Division by zero\00", align 1
+@.str.13 = private unnamed_addr constant [33 x i8] c"Invalid type to perform division\00", align 1
+@.str.14 = private unnamed_addr constant [35 x i8] c"Invalid type to perform comparison\00", align 1
+@.str.15 = private unnamed_addr constant [39 x i8] c"Invalid type to perform equality check\00", align 1
 @stdout = external local_unnamed_addr global ptr, align 8
-@.str.15 = private unnamed_addr constant [4 x i8] c"%ld\00", align 1
-@.str.16 = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
-@.str.17 = private unnamed_addr constant [20 x i8] c"Not implemented yet\00", align 1
+@.str.16 = private unnamed_addr constant [4 x i8] c"%ld\00", align 1
+@.str.17 = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
+@.str.18 = private unnamed_addr constant [20 x i8] c"Not implemented yet\00", align 1
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) uwtable
 define dso_local void @chirart_unspec(ptr nocapture noundef writeonly initializes((0, 8)) %0) local_unnamed_addr #0 {
@@ -61,17 +62,38 @@ define dso_local void @chirart_closure(ptr nocapture noundef writeonly %0, ptr n
 
 6:                                                ; preds = %4
   %7 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %8 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %7, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str.2) #9
-  tail call void @abort() #10
+  %8 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %7, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.2) #11
+  tail call void @abort() #12
   unreachable
 
 9:                                                ; preds = %4
-  %10 = or disjoint i64 %3, 65536
+  %10 = or disjoint i64 %3, 131072
   store i64 %10, ptr %0, align 8, !tbaa !5
   %11 = getelementptr inbounds nuw i8, ptr %0, i64 8
   store ptr %1, ptr %11, align 8, !tbaa !10
   %12 = getelementptr inbounds nuw i8, ptr %0, i64 16
   store ptr %2, ptr %12, align 8, !tbaa !10
+  ret void
+}
+
+; Function Attrs: mustprogress nofree nounwind uwtable
+define dso_local void @chirart_prim_op(ptr nocapture noundef writeonly %0, ptr noundef %1, i64 noundef %2) local_unnamed_addr #2 {
+  %4 = icmp ult i64 %2, 65536
+  br i1 %4, label %8, label %5, !prof !11
+
+5:                                                ; preds = %3
+  %6 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %7 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %6, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.2) #11
+  tail call void @abort() #12
+  unreachable
+
+8:                                                ; preds = %3
+  %9 = or disjoint i64 %2, 65536
+  store i64 %9, ptr %0, align 8, !tbaa !5
+  %10 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store ptr %1, ptr %10, align 8, !tbaa !10
+  %11 = getelementptr inbounds nuw i8, ptr %0, i64 16
+  store ptr null, ptr %11, align 8, !tbaa !10
   ret void
 }
 
@@ -90,25 +112,25 @@ define dso_local void @chirart_set(ptr nocapture noundef writeonly initializes((
   %6 = load i64, ptr %5, align 8, !tbaa !10
   %7 = getelementptr inbounds nuw i8, ptr %0, i64 8
   store i64 %6, ptr %7, align 8, !tbaa !10
-  br label %31
+  br label %44
 
 8:                                                ; preds = %2
   %9 = getelementptr inbounds nuw i8, ptr %1, i64 8
   %10 = load double, ptr %9, align 8, !tbaa !10
   %11 = getelementptr inbounds nuw i8, ptr %0, i64 8
   store double %10, ptr %11, align 8, !tbaa !10
-  br label %31
+  br label %44
 
 12:                                               ; preds = %2
   %13 = getelementptr inbounds nuw i8, ptr %1, i64 8
   %14 = load i8, ptr %13, align 8, !tbaa !10, !range !15, !noundef !16
   %15 = getelementptr inbounds nuw i8, ptr %0, i64 8
   store i8 %14, ptr %15, align 8, !tbaa !10
-  br label %31
+  br label %44
 
 16:                                               ; preds = %2
-  %17 = and i64 %3, -65536
-  %18 = icmp eq i64 %17, 65536
+  %17 = add i64 %3, -65536
+  %18 = icmp ult i64 %17, 131072
   br i1 %18, label %19, label %26
 
 19:                                               ; preds = %16
@@ -120,58 +142,89 @@ define dso_local void @chirart_set(ptr nocapture noundef writeonly initializes((
   %24 = load ptr, ptr %23, align 8, !tbaa !10
   %25 = getelementptr inbounds nuw i8, ptr %0, i64 16
   store ptr %24, ptr %25, align 8, !tbaa !10
-  br label %31
+  br label %44
 
 26:                                               ; preds = %16
-  %27 = icmp eq i64 %3, 0
-  br i1 %27, label %31, label %28
+  switch i64 %3, label %41 [
+    i64 4, label %27
+    i64 7, label %27
+    i64 5, label %34
+    i64 6, label %44
+    i64 0, label %44
+  ]
 
-28:                                               ; preds = %26
-  %29 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %30 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %29, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str) #9
-  tail call void @abort() #10
+27:                                               ; preds = %26, %26
+  %28 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %29 = load ptr, ptr %28, align 8, !tbaa !10
+  %30 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store ptr %29, ptr %30, align 8, !tbaa !10
+  %31 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %32 = load i64, ptr %31, align 8, !tbaa !10
+  %33 = getelementptr inbounds nuw i8, ptr %0, i64 16
+  store i64 %32, ptr %33, align 8, !tbaa !10
+  br label %44
+
+34:                                               ; preds = %26
+  %35 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %36 = load ptr, ptr %35, align 8, !tbaa !10
+  %37 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store ptr %36, ptr %37, align 8, !tbaa !10
+  %38 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %39 = load ptr, ptr %38, align 8, !tbaa !10
+  %40 = getelementptr inbounds nuw i8, ptr %0, i64 16
+  store ptr %39, ptr %40, align 8, !tbaa !10
+  br label %44
+
+41:                                               ; preds = %26
+  %42 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %43 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %42, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.1) #11
+  tail call void @abort() #12
   unreachable
 
-31:                                               ; preds = %4, %8, %12, %19, %26
+44:                                               ; preds = %4, %8, %12, %19, %26, %26, %27, %34
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local ptr @chirart_get_func_ptr(ptr nocapture noundef readonly %0) local_unnamed_addr #2 {
+define dso_local ptr @chirart_get_lambda(ptr nocapture noundef readonly %0) local_unnamed_addr #2 {
   %2 = load i64, ptr %0, align 8, !tbaa !5
   %3 = and i64 %2, -65536
-  %4 = icmp eq i64 %3, 65536
-  br i1 %4, label %8, label %5, !prof !11
+  switch i64 %3, label %4 [
+    i64 131072, label %7
+    i64 65536, label %7
+  ]
 
-5:                                                ; preds = %1
-  %6 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %7 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %6, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str.3) #9
-  tail call void @abort() #10
+4:                                                ; preds = %1
+  %5 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %6 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %5, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.3) #11
+  tail call void @abort() #12
   unreachable
 
-8:                                                ; preds = %1
-  %9 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  %10 = load ptr, ptr %9, align 8, !tbaa !10
-  ret ptr %10
+7:                                                ; preds = %1, %1
+  %8 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  %9 = load ptr, ptr %8, align 8, !tbaa !10
+  ret ptr %9
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local ptr @chirart_get_caps(ptr nocapture noundef readonly %0) local_unnamed_addr #2 {
+define dso_local ptr @chirart_get_env(ptr nocapture noundef readonly %0) local_unnamed_addr #2 {
   %2 = load i64, ptr %0, align 8, !tbaa !5
   %3 = and i64 %2, -65536
-  %4 = icmp eq i64 %3, 65536
-  br i1 %4, label %8, label %5, !prof !11
+  switch i64 %3, label %4 [
+    i64 131072, label %7
+    i64 65536, label %7
+  ]
 
-5:                                                ; preds = %1
-  %6 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %7 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %6, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str.3) #9
-  tail call void @abort() #10
+4:                                                ; preds = %1
+  %5 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %6 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %5, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.3) #11
+  tail call void @abort() #12
   unreachable
 
-8:                                                ; preds = %1
-  %9 = getelementptr inbounds nuw i8, ptr %0, i64 16
-  %10 = load ptr, ptr %9, align 8, !tbaa !10
-  ret ptr %10
+7:                                                ; preds = %1, %1
+  %8 = getelementptr inbounds nuw i8, ptr %0, i64 16
+  %9 = load ptr, ptr %8, align 8, !tbaa !10
+  ret ptr %9
 }
 
 ; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read) uwtable
@@ -188,6 +241,150 @@ define dso_local void @chirart_env_store(ptr nocapture noundef writeonly %0, i64
   ret void
 }
 
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) uwtable
+define dso_local void @chirart_args_set_size(ptr nocapture noundef writeonly initializes((0, 8)) %0, i64 noundef %1) local_unnamed_addr #0 {
+  store i64 %1, ptr %0, align 8, !tbaa !19
+  ret void
+}
+
+; Function Attrs: mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable
+define dso_local nonnull ptr @chirart_args_load(ptr noundef readnone %0, i64 noundef %1) local_unnamed_addr #4 {
+  %3 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  %4 = getelementptr inbounds nuw [0 x %"struct.chirart::Var"], ptr %3, i64 0, i64 %1
+  ret ptr %4
+}
+
+; Function Attrs: mustprogress nofree nounwind uwtable
+define dso_local void @chirart_args_store(ptr nocapture noundef writeonly %0, i64 noundef %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  %5 = getelementptr inbounds nuw [0 x %"struct.chirart::Var"], ptr %4, i64 0, i64 %1
+  %6 = load i64, ptr %2, align 8, !tbaa !5
+  store i64 %6, ptr %5, align 8, !tbaa !5
+  switch i64 %6, label %19 [
+    i64 1, label %7
+    i64 2, label %11
+    i64 3, label %15
+  ]
+
+7:                                                ; preds = %3
+  %8 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %9 = load i64, ptr %8, align 8, !tbaa !10
+  %10 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store i64 %9, ptr %10, align 8, !tbaa !10
+  br label %47
+
+11:                                               ; preds = %3
+  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %13 = load double, ptr %12, align 8, !tbaa !10
+  %14 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store double %13, ptr %14, align 8, !tbaa !10
+  br label %47
+
+15:                                               ; preds = %3
+  %16 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %17 = load i8, ptr %16, align 8, !tbaa !10, !range !15, !noundef !16
+  %18 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store i8 %17, ptr %18, align 8, !tbaa !10
+  br label %47
+
+19:                                               ; preds = %3
+  %20 = add i64 %6, -65536
+  %21 = icmp ult i64 %20, 131072
+  br i1 %21, label %22, label %29
+
+22:                                               ; preds = %19
+  %23 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %24 = load ptr, ptr %23, align 8, !tbaa !10
+  %25 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store ptr %24, ptr %25, align 8, !tbaa !10
+  %26 = getelementptr inbounds nuw i8, ptr %2, i64 16
+  %27 = load ptr, ptr %26, align 8, !tbaa !10
+  %28 = getelementptr inbounds nuw i8, ptr %5, i64 16
+  store ptr %27, ptr %28, align 8, !tbaa !10
+  br label %47
+
+29:                                               ; preds = %19
+  switch i64 %6, label %44 [
+    i64 4, label %30
+    i64 7, label %30
+    i64 5, label %37
+    i64 6, label %47
+    i64 0, label %47
+  ]
+
+30:                                               ; preds = %29, %29
+  %31 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %32 = load ptr, ptr %31, align 8, !tbaa !10
+  %33 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store ptr %32, ptr %33, align 8, !tbaa !10
+  %34 = getelementptr inbounds nuw i8, ptr %2, i64 16
+  %35 = load i64, ptr %34, align 8, !tbaa !10
+  %36 = getelementptr inbounds nuw i8, ptr %5, i64 16
+  store i64 %35, ptr %36, align 8, !tbaa !10
+  br label %47
+
+37:                                               ; preds = %29
+  %38 = getelementptr inbounds nuw i8, ptr %2, i64 8
+  %39 = load ptr, ptr %38, align 8, !tbaa !10
+  %40 = getelementptr inbounds nuw i8, ptr %5, i64 8
+  store ptr %39, ptr %40, align 8, !tbaa !10
+  %41 = getelementptr inbounds nuw i8, ptr %2, i64 16
+  %42 = load ptr, ptr %41, align 8, !tbaa !10
+  %43 = getelementptr inbounds nuw i8, ptr %5, i64 16
+  store ptr %42, ptr %43, align 8, !tbaa !10
+  br label %47
+
+44:                                               ; preds = %29
+  %45 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %46 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %45, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.1) #11
+  tail call void @abort() #12
+  unreachable
+
+47:                                               ; preds = %7, %11, %15, %22, %29, %29, %30, %37
+  ret void
+}
+
+; Function Attrs: mustprogress uwtable
+define dso_local void @chirart_call(ptr noundef %0, ptr nocapture noundef readonly %1, ptr noundef %2) local_unnamed_addr #5 {
+  %4 = load i64, ptr %2, align 8, !tbaa !19
+  %5 = load i64, ptr %1, align 8, !tbaa !5
+  %6 = and i64 %5, -65536
+  switch i64 %6, label %7 [
+    i64 131072, label %10
+    i64 65536, label %13
+  ], !prof !21
+
+7:                                                ; preds = %3
+  %8 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %9 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %8, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.3) #11
+  tail call void @abort() #12
+  unreachable
+
+10:                                               ; preds = %3
+  %11 = add nsw i64 %5, -131072
+  %12 = icmp eq i64 %4, %11
+  br i1 %12, label %19, label %16, !prof !11
+
+13:                                               ; preds = %3
+  %14 = add nsw i64 %5, -65536
+  %15 = icmp eq i64 %4, %14
+  br i1 %15, label %19, label %16, !prof !11
+
+16:                                               ; preds = %13, %10
+  %17 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %18 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %17, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str) #11
+  tail call void @abort() #12
+  unreachable
+
+19:                                               ; preds = %13, %10
+  %20 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %21 = load ptr, ptr %20, align 8, !tbaa !10
+  %22 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %23 = load ptr, ptr %22, align 8, !tbaa !10
+  tail call void %21(ptr noundef %0, ptr noundef nonnull %2, ptr noundef %23)
+  ret void
+}
+
 ; Function Attrs: mustprogress nofree nounwind uwtable
 define dso_local zeroext i1 @chirart_get_bool(ptr nocapture noundef readonly %0) local_unnamed_addr #2 {
   %2 = load i64, ptr %0, align 8, !tbaa !5
@@ -196,8 +393,8 @@ define dso_local zeroext i1 @chirart_get_bool(ptr nocapture noundef readonly %0)
 
 4:                                                ; preds = %1
   %5 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %6 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %5, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str.4) #9
-  tail call void @abort() #10
+  %6 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %5, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.5) #11
+  tail call void @abort() #12
   unreachable
 
 7:                                                ; preds = %1
@@ -208,635 +405,656 @@ define dso_local zeroext i1 @chirart_get_bool(ptr nocapture noundef readonly %0)
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_add(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !19
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %9
+define dso_local void @chirart_add(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !22
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %11
 
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !19
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %34, label %13
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !22
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %36, label %15
 
-9:                                                ; preds = %3
-  %10 = icmp eq i64 %4, 2
-  br i1 %10, label %11, label %31
+11:                                               ; preds = %3
+  %12 = icmp eq i64 %6, 2
+  br i1 %12, label %13, label %33
 
-11:                                               ; preds = %9
-  %12 = load i64, ptr %2, align 8, !tbaa !5, !noalias !19
-  br label %13
+13:                                               ; preds = %11
+  %14 = load i64, ptr %5, align 8, !tbaa !5, !noalias !22
+  br label %15
 
-13:                                               ; preds = %6, %11
-  %14 = phi i64 [ %12, %11 ], [ %7, %6 ]
-  %15 = add i64 %14, -1
-  %16 = icmp ult i64 %15, 2
-  br i1 %16, label %17, label %31
+15:                                               ; preds = %8, %13
+  %16 = phi i64 [ %14, %13 ], [ %9, %8 ]
+  %17 = add i64 %16, -1
+  %18 = icmp ult i64 %17, 2
+  br i1 %18, label %19, label %33
 
-17:                                               ; preds = %13
-  %18 = icmp eq i64 %14, 2
-  %19 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %20 = load double, ptr %19, align 8, !noalias !19
-  %21 = bitcast double %20 to i64
-  %22 = sitofp i64 %21 to double
-  %23 = select i1 %5, double %22, double %20
-  %24 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %25 = load double, ptr %24, align 8, !noalias !19
-  %26 = bitcast double %25 to i64
-  %27 = sitofp i64 %26 to double
-  %28 = select i1 %18, double %25, double %27
-  %29 = fadd double %23, %28
+19:                                               ; preds = %15
+  %20 = icmp eq i64 %16, 2
+  %21 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %22 = load double, ptr %21, align 8, !noalias !22
+  %23 = bitcast double %22 to i64
+  %24 = sitofp i64 %23 to double
+  %25 = select i1 %7, double %24, double %22
+  %26 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %27 = load double, ptr %26, align 8, !noalias !22
+  %28 = bitcast double %27 to i64
+  %29 = sitofp i64 %28 to double
+  %30 = select i1 %20, double %27, double %29
+  %31 = fadd double %25, %30
   store i64 2, ptr %0, align 8, !tbaa !5
-  %30 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store double %29, ptr %30, align 8, !tbaa !10
-  br label %41
+  %32 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store double %31, ptr %32, align 8, !tbaa !10
+  br label %43
 
-31:                                               ; preds = %13, %9
-  %32 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !19
-  %33 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %32, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.5) #9, !noalias !19
-  tail call void @abort() #10, !noalias !19
+33:                                               ; preds = %15, %11
+  %34 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !22
+  %35 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %34, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.6) #11, !noalias !22
+  tail call void @abort() #12, !noalias !22
   unreachable
 
-34:                                               ; preds = %6
-  %35 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %36 = load i64, ptr %35, align 8, !tbaa !10, !noalias !19
-  %37 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %38 = load i64, ptr %37, align 8, !tbaa !10, !noalias !19
-  %39 = add nsw i64 %38, %36
-  store i64 1, ptr %0, align 8, !tbaa !5
-  %40 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i64 %39, ptr %40, align 8, !tbaa !10
-  br label %41
-
-41:                                               ; preds = %34, %17
-  ret void
-}
-
-; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_sub(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !22
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %9
-
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !22
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %34, label %13
-
-9:                                                ; preds = %3
-  %10 = icmp eq i64 %4, 2
-  br i1 %10, label %11, label %31
-
-11:                                               ; preds = %9
-  %12 = load i64, ptr %2, align 8, !tbaa !5, !noalias !22
-  br label %13
-
-13:                                               ; preds = %6, %11
-  %14 = phi i64 [ %12, %11 ], [ %7, %6 ]
-  %15 = add i64 %14, -1
-  %16 = icmp ult i64 %15, 2
-  br i1 %16, label %17, label %31
-
-17:                                               ; preds = %13
-  %18 = icmp eq i64 %14, 2
-  %19 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %20 = load double, ptr %19, align 8, !noalias !22
-  %21 = bitcast double %20 to i64
-  %22 = sitofp i64 %21 to double
-  %23 = select i1 %5, double %22, double %20
-  %24 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %25 = load double, ptr %24, align 8, !noalias !22
-  %26 = bitcast double %25 to i64
-  %27 = sitofp i64 %26 to double
-  %28 = select i1 %18, double %25, double %27
-  %29 = fsub double %23, %28
-  store i64 2, ptr %0, align 8, !tbaa !5
-  %30 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store double %29, ptr %30, align 8, !tbaa !10
-  br label %41
-
-31:                                               ; preds = %13, %9
-  %32 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !22
-  %33 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %32, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.9) #9, !noalias !22
-  tail call void @abort() #10, !noalias !22
-  unreachable
-
-34:                                               ; preds = %6
-  %35 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %36 = load i64, ptr %35, align 8, !tbaa !10, !noalias !22
-  %37 = getelementptr inbounds nuw i8, ptr %2, i64 8
+36:                                               ; preds = %8
+  %37 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %38 = load i64, ptr %37, align 8, !tbaa !10, !noalias !22
-  %39 = sub nsw i64 %36, %38
+  %39 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %40 = load i64, ptr %39, align 8, !tbaa !10, !noalias !22
+  %41 = add nsw i64 %40, %38
   store i64 1, ptr %0, align 8, !tbaa !5
-  %40 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i64 %39, ptr %40, align 8, !tbaa !10
-  br label %41
+  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i64 %41, ptr %42, align 8, !tbaa !10
+  br label %43
 
-41:                                               ; preds = %34, %17
+43:                                               ; preds = %36, %19
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_mul(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !25
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %9
+define dso_local void @chirart_sub(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !25
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %11
 
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !25
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %34, label %13
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !25
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %36, label %15
 
-9:                                                ; preds = %3
-  %10 = icmp eq i64 %4, 2
-  br i1 %10, label %11, label %31
+11:                                               ; preds = %3
+  %12 = icmp eq i64 %6, 2
+  br i1 %12, label %13, label %33
 
-11:                                               ; preds = %9
-  %12 = load i64, ptr %2, align 8, !tbaa !5, !noalias !25
-  br label %13
+13:                                               ; preds = %11
+  %14 = load i64, ptr %5, align 8, !tbaa !5, !noalias !25
+  br label %15
 
-13:                                               ; preds = %6, %11
-  %14 = phi i64 [ %12, %11 ], [ %7, %6 ]
-  %15 = add i64 %14, -1
-  %16 = icmp ult i64 %15, 2
-  br i1 %16, label %17, label %31
+15:                                               ; preds = %8, %13
+  %16 = phi i64 [ %14, %13 ], [ %9, %8 ]
+  %17 = add i64 %16, -1
+  %18 = icmp ult i64 %17, 2
+  br i1 %18, label %19, label %33
 
-17:                                               ; preds = %13
-  %18 = icmp eq i64 %14, 2
-  %19 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %20 = load double, ptr %19, align 8, !noalias !25
-  %21 = bitcast double %20 to i64
-  %22 = sitofp i64 %21 to double
-  %23 = select i1 %5, double %22, double %20
-  %24 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %25 = load double, ptr %24, align 8, !noalias !25
-  %26 = bitcast double %25 to i64
-  %27 = sitofp i64 %26 to double
-  %28 = select i1 %18, double %25, double %27
-  %29 = fmul double %23, %28
+19:                                               ; preds = %15
+  %20 = icmp eq i64 %16, 2
+  %21 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %22 = load double, ptr %21, align 8, !noalias !25
+  %23 = bitcast double %22 to i64
+  %24 = sitofp i64 %23 to double
+  %25 = select i1 %7, double %24, double %22
+  %26 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %27 = load double, ptr %26, align 8, !noalias !25
+  %28 = bitcast double %27 to i64
+  %29 = sitofp i64 %28 to double
+  %30 = select i1 %20, double %27, double %29
+  %31 = fsub double %25, %30
   store i64 2, ptr %0, align 8, !tbaa !5
-  %30 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store double %29, ptr %30, align 8, !tbaa !10
-  br label %41
+  %32 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store double %31, ptr %32, align 8, !tbaa !10
+  br label %43
 
-31:                                               ; preds = %13, %9
-  %32 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !25
-  %33 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %32, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.10) #9, !noalias !25
-  tail call void @abort() #10, !noalias !25
+33:                                               ; preds = %15, %11
+  %34 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !25
+  %35 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %34, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.10) #11, !noalias !25
+  tail call void @abort() #12, !noalias !25
   unreachable
 
-34:                                               ; preds = %6
-  %35 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %36 = load i64, ptr %35, align 8, !tbaa !10, !noalias !25
-  %37 = getelementptr inbounds nuw i8, ptr %2, i64 8
+36:                                               ; preds = %8
+  %37 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %38 = load i64, ptr %37, align 8, !tbaa !10, !noalias !25
-  %39 = mul nsw i64 %38, %36
+  %39 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %40 = load i64, ptr %39, align 8, !tbaa !10, !noalias !25
+  %41 = sub nsw i64 %38, %40
   store i64 1, ptr %0, align 8, !tbaa !5
-  %40 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i64 %39, ptr %40, align 8, !tbaa !10
-  br label %41
+  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i64 %41, ptr %42, align 8, !tbaa !10
+  br label %43
 
-41:                                               ; preds = %34, %17
+43:                                               ; preds = %36, %19
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_div(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !28
-  %5 = add i64 %4, -1
-  %6 = icmp ult i64 %5, 2
-  br i1 %6, label %7, label %11
+define dso_local void @chirart_mul(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !28
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %11
 
-7:                                                ; preds = %3
-  %8 = load i64, ptr %2, align 8, !tbaa !5, !noalias !28
-  %9 = add i64 %8, -1
-  %10 = icmp ult i64 %9, 2
-  br i1 %10, label %14, label %11
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !28
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %36, label %15
 
-11:                                               ; preds = %7, %3
-  %12 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !28
-  %13 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %12, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.12) #9, !noalias !28
-  tail call void @abort() #10, !noalias !28
+11:                                               ; preds = %3
+  %12 = icmp eq i64 %6, 2
+  br i1 %12, label %13, label %33
+
+13:                                               ; preds = %11
+  %14 = load i64, ptr %5, align 8, !tbaa !5, !noalias !28
+  br label %15
+
+15:                                               ; preds = %8, %13
+  %16 = phi i64 [ %14, %13 ], [ %9, %8 ]
+  %17 = add i64 %16, -1
+  %18 = icmp ult i64 %17, 2
+  br i1 %18, label %19, label %33
+
+19:                                               ; preds = %15
+  %20 = icmp eq i64 %16, 2
+  %21 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %22 = load double, ptr %21, align 8, !noalias !28
+  %23 = bitcast double %22 to i64
+  %24 = sitofp i64 %23 to double
+  %25 = select i1 %7, double %24, double %22
+  %26 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %27 = load double, ptr %26, align 8, !noalias !28
+  %28 = bitcast double %27 to i64
+  %29 = sitofp i64 %28 to double
+  %30 = select i1 %20, double %27, double %29
+  %31 = fmul double %25, %30
+  store i64 2, ptr %0, align 8, !tbaa !5
+  %32 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store double %31, ptr %32, align 8, !tbaa !10
+  br label %43
+
+33:                                               ; preds = %15, %11
+  %34 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !28
+  %35 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %34, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.11) #11, !noalias !28
+  tail call void @abort() #12, !noalias !28
   unreachable
 
-14:                                               ; preds = %7
-  %15 = icmp eq i64 %8, 2
-  %16 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %17 = load double, ptr %16, align 8, !noalias !28
-  %18 = bitcast double %17 to i64
-  %19 = sitofp i64 %18 to double
-  %20 = select i1 %15, double %17, double %19
-  %21 = fcmp une double %20, 0.000000e+00
-  br i1 %21, label %25, label %22, !prof !11
+36:                                               ; preds = %8
+  %37 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %38 = load i64, ptr %37, align 8, !tbaa !10, !noalias !28
+  %39 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %40 = load i64, ptr %39, align 8, !tbaa !10, !noalias !28
+  %41 = mul nsw i64 %40, %38
+  store i64 1, ptr %0, align 8, !tbaa !5
+  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i64 %41, ptr %42, align 8, !tbaa !10
+  br label %43
 
-22:                                               ; preds = %14
-  %23 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !28
-  %24 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %23, ptr noundef nonnull @.str.1, ptr noundef nonnull @.str.11) #9, !noalias !28
-  tail call void @abort() #10, !noalias !28
+43:                                               ; preds = %36, %19
+  ret void
+}
+
+; Function Attrs: mustprogress nofree nounwind uwtable
+define dso_local void @chirart_div(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = load i64, ptr %4, align 8, !tbaa !5, !noalias !31
+  %6 = add i64 %5, -1
+  %7 = icmp ult i64 %6, 2
+  br i1 %7, label %8, label %24
+
+8:                                                ; preds = %3
+  %9 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %10 = load i64, ptr %9, align 8, !tbaa !5, !noalias !31
+  %11 = add i64 %10, -1
+  %12 = icmp ult i64 %11, 2
+  br i1 %12, label %13, label %24
+
+13:                                               ; preds = %8
+  %14 = icmp eq i64 %10, 2
+  %15 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %16 = load double, ptr %15, align 8, !noalias !31
+  %17 = bitcast double %16 to i64
+  %18 = sitofp i64 %17 to double
+  %19 = select i1 %14, double %16, double %18
+  %20 = fcmp une double %19, 0.000000e+00
+  br i1 %20, label %27, label %21, !prof !11
+
+21:                                               ; preds = %13
+  %22 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !31
+  %23 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %22, ptr noundef nonnull @.str.4, ptr noundef nonnull @.str.12) #11, !noalias !31
+  tail call void @abort() #12, !noalias !31
   unreachable
 
-25:                                               ; preds = %14
-  %26 = icmp eq i64 %4, 2
-  %27 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %28 = load double, ptr %27, align 8, !noalias !28
+24:                                               ; preds = %8, %3
+  %25 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !31
+  %26 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %25, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.13) #11, !noalias !31
+  tail call void @abort() #12, !noalias !31
+  unreachable
+
+27:                                               ; preds = %13
+  %28 = icmp eq i64 %5, 2
+  %29 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %30 = load double, ptr %29, align 8, !noalias !31
+  %31 = bitcast double %30 to i64
+  %32 = sitofp i64 %31 to double
+  %33 = select i1 %28, double %30, double %32
+  %34 = fdiv double %33, %19
+  store i64 2, ptr %0, align 8, !tbaa !5
+  %35 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store double %34, ptr %35, align 8, !tbaa !10
+  ret void
+}
+
+; Function Attrs: mustprogress nofree nounwind uwtable
+define dso_local void @chirart_lt(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !34
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %17
+
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !34
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %11, label %21
+
+11:                                               ; preds = %8
+  %12 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !34
+  %14 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %15 = load i64, ptr %14, align 8, !tbaa !10, !noalias !34
+  %16 = icmp slt i64 %13, %15
+  br label %41
+
+17:                                               ; preds = %3
+  %18 = icmp eq i64 %6, 2
+  br i1 %18, label %19, label %38
+
+19:                                               ; preds = %17
+  %20 = load i64, ptr %5, align 8, !tbaa !5, !noalias !34
+  br label %21
+
+21:                                               ; preds = %8, %19
+  %22 = phi i64 [ %20, %19 ], [ %9, %8 ]
+  %23 = add i64 %22, -1
+  %24 = icmp ult i64 %23, 2
+  br i1 %24, label %25, label %38
+
+25:                                               ; preds = %21
+  %26 = icmp eq i64 %22, 2
+  %27 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %28 = load double, ptr %27, align 8, !noalias !34
   %29 = bitcast double %28 to i64
   %30 = sitofp i64 %29 to double
-  %31 = select i1 %26, double %28, double %30
-  %32 = fdiv double %31, %20
-  store i64 2, ptr %0, align 8, !tbaa !5
-  %33 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store double %32, ptr %33, align 8, !tbaa !10
-  ret void
-}
+  %31 = select i1 %7, double %30, double %28
+  %32 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %33 = load double, ptr %32, align 8, !noalias !34
+  %34 = bitcast double %33 to i64
+  %35 = sitofp i64 %34 to double
+  %36 = select i1 %26, double %33, double %35
+  %37 = fcmp olt double %31, %36
+  br label %41
 
-; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_lt(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !31
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %15
-
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !31
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %9, label %19
-
-9:                                                ; preds = %6
-  %10 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %11 = load i64, ptr %10, align 8, !tbaa !10, !noalias !31
-  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !31
-  %14 = icmp slt i64 %11, %13
-  br label %39
-
-15:                                               ; preds = %3
-  %16 = icmp eq i64 %4, 2
-  br i1 %16, label %17, label %36
-
-17:                                               ; preds = %15
-  %18 = load i64, ptr %2, align 8, !tbaa !5, !noalias !31
-  br label %19
-
-19:                                               ; preds = %6, %17
-  %20 = phi i64 [ %18, %17 ], [ %7, %6 ]
-  %21 = add i64 %20, -1
-  %22 = icmp ult i64 %21, 2
-  br i1 %22, label %23, label %36
-
-23:                                               ; preds = %19
-  %24 = icmp eq i64 %20, 2
-  %25 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %26 = load double, ptr %25, align 8, !noalias !31
-  %27 = bitcast double %26 to i64
-  %28 = sitofp i64 %27 to double
-  %29 = select i1 %5, double %28, double %26
-  %30 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %31 = load double, ptr %30, align 8, !noalias !31
-  %32 = bitcast double %31 to i64
-  %33 = sitofp i64 %32 to double
-  %34 = select i1 %24, double %31, double %33
-  %35 = fcmp olt double %29, %34
-  br label %39
-
-36:                                               ; preds = %19, %15
-  %37 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !31
-  %38 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %37, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.13) #9, !noalias !31
-  tail call void @abort() #10, !noalias !31
+38:                                               ; preds = %21, %17
+  %39 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !34
+  %40 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %39, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.14) #11, !noalias !34
+  tail call void @abort() #12, !noalias !34
   unreachable
 
-39:                                               ; preds = %23, %9
-  %40 = phi i1 [ %35, %23 ], [ %14, %9 ]
-  %41 = zext i1 %40 to i8
+41:                                               ; preds = %11, %25
+  %42 = phi i1 [ %37, %25 ], [ %16, %11 ]
+  %43 = zext i1 %42 to i8
   store i64 3, ptr %0, align 8, !tbaa !5
-  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i8 %41, ptr %42, align 8, !tbaa !10
+  %44 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i8 %43, ptr %44, align 8, !tbaa !10
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_le(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !34
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %15
+define dso_local void @chirart_le(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !37
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %17
 
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !34
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %9, label %19
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !37
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %11, label %21
 
-9:                                                ; preds = %6
-  %10 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %11 = load i64, ptr %10, align 8, !tbaa !10, !noalias !34
-  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !34
-  %14 = icmp sle i64 %11, %13
-  br label %39
-
-15:                                               ; preds = %3
-  %16 = icmp eq i64 %4, 2
-  br i1 %16, label %17, label %36
-
-17:                                               ; preds = %15
-  %18 = load i64, ptr %2, align 8, !tbaa !5, !noalias !34
-  br label %19
-
-19:                                               ; preds = %6, %17
-  %20 = phi i64 [ %18, %17 ], [ %7, %6 ]
-  %21 = add i64 %20, -1
-  %22 = icmp ult i64 %21, 2
-  br i1 %22, label %23, label %36
-
-23:                                               ; preds = %19
-  %24 = icmp eq i64 %20, 2
-  %25 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %26 = load double, ptr %25, align 8, !noalias !34
-  %27 = bitcast double %26 to i64
-  %28 = sitofp i64 %27 to double
-  %29 = select i1 %5, double %28, double %26
-  %30 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %31 = load double, ptr %30, align 8, !noalias !34
-  %32 = bitcast double %31 to i64
-  %33 = sitofp i64 %32 to double
-  %34 = select i1 %24, double %31, double %33
-  %35 = fcmp ole double %29, %34
-  br label %39
-
-36:                                               ; preds = %19, %15
-  %37 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !34
-  %38 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %37, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.13) #9, !noalias !34
-  tail call void @abort() #10, !noalias !34
-  unreachable
-
-39:                                               ; preds = %23, %9
-  %40 = phi i1 [ %35, %23 ], [ %14, %9 ]
-  %41 = zext i1 %40 to i8
-  store i64 3, ptr %0, align 8, !tbaa !5
-  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i8 %41, ptr %42, align 8, !tbaa !10
-  ret void
-}
-
-; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_gt(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !37
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %15
-
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !37
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %9, label %19
-
-9:                                                ; preds = %6
-  %10 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %11 = load i64, ptr %10, align 8, !tbaa !10, !noalias !37
-  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
+11:                                               ; preds = %8
+  %12 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !37
-  %14 = icmp sgt i64 %11, %13
-  br label %39
+  %14 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %15 = load i64, ptr %14, align 8, !tbaa !10, !noalias !37
+  %16 = icmp sle i64 %13, %15
+  br label %41
 
-15:                                               ; preds = %3
-  %16 = icmp eq i64 %4, 2
-  br i1 %16, label %17, label %36
+17:                                               ; preds = %3
+  %18 = icmp eq i64 %6, 2
+  br i1 %18, label %19, label %38
 
-17:                                               ; preds = %15
-  %18 = load i64, ptr %2, align 8, !tbaa !5, !noalias !37
-  br label %19
+19:                                               ; preds = %17
+  %20 = load i64, ptr %5, align 8, !tbaa !5, !noalias !37
+  br label %21
 
-19:                                               ; preds = %6, %17
-  %20 = phi i64 [ %18, %17 ], [ %7, %6 ]
-  %21 = add i64 %20, -1
-  %22 = icmp ult i64 %21, 2
-  br i1 %22, label %23, label %36
+21:                                               ; preds = %8, %19
+  %22 = phi i64 [ %20, %19 ], [ %9, %8 ]
+  %23 = add i64 %22, -1
+  %24 = icmp ult i64 %23, 2
+  br i1 %24, label %25, label %38
 
-23:                                               ; preds = %19
-  %24 = icmp eq i64 %20, 2
-  %25 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %26 = load double, ptr %25, align 8, !noalias !37
-  %27 = bitcast double %26 to i64
-  %28 = sitofp i64 %27 to double
-  %29 = select i1 %5, double %28, double %26
-  %30 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %31 = load double, ptr %30, align 8, !noalias !37
-  %32 = bitcast double %31 to i64
-  %33 = sitofp i64 %32 to double
-  %34 = select i1 %24, double %31, double %33
-  %35 = fcmp ogt double %29, %34
-  br label %39
+25:                                               ; preds = %21
+  %26 = icmp eq i64 %22, 2
+  %27 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %28 = load double, ptr %27, align 8, !noalias !37
+  %29 = bitcast double %28 to i64
+  %30 = sitofp i64 %29 to double
+  %31 = select i1 %7, double %30, double %28
+  %32 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %33 = load double, ptr %32, align 8, !noalias !37
+  %34 = bitcast double %33 to i64
+  %35 = sitofp i64 %34 to double
+  %36 = select i1 %26, double %33, double %35
+  %37 = fcmp ole double %31, %36
+  br label %41
 
-36:                                               ; preds = %19, %15
-  %37 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !37
-  %38 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %37, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.13) #9, !noalias !37
-  tail call void @abort() #10, !noalias !37
+38:                                               ; preds = %21, %17
+  %39 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !37
+  %40 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %39, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.14) #11, !noalias !37
+  tail call void @abort() #12, !noalias !37
   unreachable
 
-39:                                               ; preds = %23, %9
-  %40 = phi i1 [ %35, %23 ], [ %14, %9 ]
-  %41 = zext i1 %40 to i8
+41:                                               ; preds = %11, %25
+  %42 = phi i1 [ %37, %25 ], [ %16, %11 ]
+  %43 = zext i1 %42 to i8
   store i64 3, ptr %0, align 8, !tbaa !5
-  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i8 %41, ptr %42, align 8, !tbaa !10
+  %44 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i8 %43, ptr %44, align 8, !tbaa !10
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_ge(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !40
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %15
+define dso_local void @chirart_gt(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !40
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %17
 
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !40
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %9, label %19
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !40
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %11, label %21
 
-9:                                                ; preds = %6
-  %10 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %11 = load i64, ptr %10, align 8, !tbaa !10, !noalias !40
-  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
+11:                                               ; preds = %8
+  %12 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !40
-  %14 = icmp sge i64 %11, %13
-  br label %39
+  %14 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %15 = load i64, ptr %14, align 8, !tbaa !10, !noalias !40
+  %16 = icmp sgt i64 %13, %15
+  br label %41
 
-15:                                               ; preds = %3
-  %16 = icmp eq i64 %4, 2
-  br i1 %16, label %17, label %36
+17:                                               ; preds = %3
+  %18 = icmp eq i64 %6, 2
+  br i1 %18, label %19, label %38
 
-17:                                               ; preds = %15
-  %18 = load i64, ptr %2, align 8, !tbaa !5, !noalias !40
-  br label %19
+19:                                               ; preds = %17
+  %20 = load i64, ptr %5, align 8, !tbaa !5, !noalias !40
+  br label %21
 
-19:                                               ; preds = %6, %17
-  %20 = phi i64 [ %18, %17 ], [ %7, %6 ]
-  %21 = add i64 %20, -1
-  %22 = icmp ult i64 %21, 2
-  br i1 %22, label %23, label %36
+21:                                               ; preds = %8, %19
+  %22 = phi i64 [ %20, %19 ], [ %9, %8 ]
+  %23 = add i64 %22, -1
+  %24 = icmp ult i64 %23, 2
+  br i1 %24, label %25, label %38
 
-23:                                               ; preds = %19
-  %24 = icmp eq i64 %20, 2
-  %25 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %26 = load double, ptr %25, align 8, !noalias !40
-  %27 = bitcast double %26 to i64
-  %28 = sitofp i64 %27 to double
-  %29 = select i1 %5, double %28, double %26
-  %30 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %31 = load double, ptr %30, align 8, !noalias !40
-  %32 = bitcast double %31 to i64
-  %33 = sitofp i64 %32 to double
-  %34 = select i1 %24, double %31, double %33
-  %35 = fcmp oge double %29, %34
-  br label %39
+25:                                               ; preds = %21
+  %26 = icmp eq i64 %22, 2
+  %27 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %28 = load double, ptr %27, align 8, !noalias !40
+  %29 = bitcast double %28 to i64
+  %30 = sitofp i64 %29 to double
+  %31 = select i1 %7, double %30, double %28
+  %32 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %33 = load double, ptr %32, align 8, !noalias !40
+  %34 = bitcast double %33 to i64
+  %35 = sitofp i64 %34 to double
+  %36 = select i1 %26, double %33, double %35
+  %37 = fcmp ogt double %31, %36
+  br label %41
 
-36:                                               ; preds = %19, %15
-  %37 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !40
-  %38 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %37, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.13) #9, !noalias !40
-  tail call void @abort() #10, !noalias !40
+38:                                               ; preds = %21, %17
+  %39 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !40
+  %40 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %39, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.14) #11, !noalias !40
+  tail call void @abort() #12, !noalias !40
   unreachable
 
-39:                                               ; preds = %23, %9
-  %40 = phi i1 [ %35, %23 ], [ %14, %9 ]
-  %41 = zext i1 %40 to i8
+41:                                               ; preds = %11, %25
+  %42 = phi i1 [ %37, %25 ], [ %16, %11 ]
+  %43 = zext i1 %42 to i8
   store i64 3, ptr %0, align 8, !tbaa !5
-  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i8 %41, ptr %42, align 8, !tbaa !10
+  %44 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i8 %43, ptr %44, align 8, !tbaa !10
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_eq(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readonly %2) local_unnamed_addr #2 {
-  %4 = load i64, ptr %1, align 8, !tbaa !5, !noalias !43
-  %5 = icmp eq i64 %4, 1
-  br i1 %5, label %6, label %15
+define dso_local void @chirart_ge(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !43
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %17
 
-6:                                                ; preds = %3
-  %7 = load i64, ptr %2, align 8, !tbaa !5, !noalias !43
-  %8 = icmp eq i64 %7, 1
-  br i1 %8, label %9, label %19
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !43
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %11, label %21
 
-9:                                                ; preds = %6
-  %10 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %11 = load i64, ptr %10, align 8, !tbaa !10, !noalias !43
-  %12 = getelementptr inbounds nuw i8, ptr %2, i64 8
+11:                                               ; preds = %8
+  %12 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !43
-  %14 = icmp eq i64 %11, %13
-  br label %39
+  %14 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %15 = load i64, ptr %14, align 8, !tbaa !10, !noalias !43
+  %16 = icmp sge i64 %13, %15
+  br label %41
 
-15:                                               ; preds = %3
-  %16 = icmp eq i64 %4, 2
-  br i1 %16, label %17, label %36
+17:                                               ; preds = %3
+  %18 = icmp eq i64 %6, 2
+  br i1 %18, label %19, label %38
 
-17:                                               ; preds = %15
-  %18 = load i64, ptr %2, align 8, !tbaa !5, !noalias !43
-  br label %19
+19:                                               ; preds = %17
+  %20 = load i64, ptr %5, align 8, !tbaa !5, !noalias !43
+  br label %21
 
-19:                                               ; preds = %6, %17
-  %20 = phi i64 [ %18, %17 ], [ %7, %6 ]
-  %21 = add i64 %20, -1
-  %22 = icmp ult i64 %21, 2
-  br i1 %22, label %23, label %36
+21:                                               ; preds = %8, %19
+  %22 = phi i64 [ %20, %19 ], [ %9, %8 ]
+  %23 = add i64 %22, -1
+  %24 = icmp ult i64 %23, 2
+  br i1 %24, label %25, label %38
 
-23:                                               ; preds = %19
-  %24 = icmp eq i64 %20, 2
-  %25 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %26 = load double, ptr %25, align 8, !noalias !43
-  %27 = bitcast double %26 to i64
-  %28 = sitofp i64 %27 to double
-  %29 = select i1 %5, double %28, double %26
-  %30 = getelementptr inbounds nuw i8, ptr %2, i64 8
-  %31 = load double, ptr %30, align 8, !noalias !43
-  %32 = bitcast double %31 to i64
-  %33 = sitofp i64 %32 to double
-  %34 = select i1 %24, double %31, double %33
-  %35 = fcmp oeq double %29, %34
-  br label %39
+25:                                               ; preds = %21
+  %26 = icmp eq i64 %22, 2
+  %27 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %28 = load double, ptr %27, align 8, !noalias !43
+  %29 = bitcast double %28 to i64
+  %30 = sitofp i64 %29 to double
+  %31 = select i1 %7, double %30, double %28
+  %32 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %33 = load double, ptr %32, align 8, !noalias !43
+  %34 = bitcast double %33 to i64
+  %35 = sitofp i64 %34 to double
+  %36 = select i1 %26, double %33, double %35
+  %37 = fcmp oge double %31, %36
+  br label %41
 
-36:                                               ; preds = %19, %15
-  %37 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !43
-  %38 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %37, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.14) #9, !noalias !43
-  tail call void @abort() #10, !noalias !43
+38:                                               ; preds = %21, %17
+  %39 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !43
+  %40 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %39, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.14) #11, !noalias !43
+  tail call void @abort() #12, !noalias !43
   unreachable
 
-39:                                               ; preds = %23, %9
-  %40 = phi i1 [ %35, %23 ], [ %14, %9 ]
-  %41 = zext i1 %40 to i8
+41:                                               ; preds = %11, %25
+  %42 = phi i1 [ %37, %25 ], [ %16, %11 ]
+  %43 = zext i1 %42 to i8
   store i64 3, ptr %0, align 8, !tbaa !5
-  %42 = getelementptr inbounds nuw i8, ptr %0, i64 8
-  store i8 %41, ptr %42, align 8, !tbaa !10
+  %44 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i8 %43, ptr %44, align 8, !tbaa !10
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_display(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1) local_unnamed_addr #2 {
-  %3 = load i64, ptr %1, align 8, !tbaa !5
-  switch i64 %3, label %14 [
-    i64 1, label %4
-    i64 2, label %9
+define dso_local void @chirart_eq(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = getelementptr inbounds nuw i8, ptr %1, i64 32
+  %6 = load i64, ptr %4, align 8, !tbaa !5, !noalias !46
+  %7 = icmp eq i64 %6, 1
+  br i1 %7, label %8, label %17
+
+8:                                                ; preds = %3
+  %9 = load i64, ptr %5, align 8, !tbaa !5, !noalias !46
+  %10 = icmp eq i64 %9, 1
+  br i1 %10, label %11, label %21
+
+11:                                               ; preds = %8
+  %12 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %13 = load i64, ptr %12, align 8, !tbaa !10, !noalias !46
+  %14 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %15 = load i64, ptr %14, align 8, !tbaa !10, !noalias !46
+  %16 = icmp eq i64 %13, %15
+  br label %41
+
+17:                                               ; preds = %3
+  %18 = icmp eq i64 %6, 2
+  br i1 %18, label %19, label %38
+
+19:                                               ; preds = %17
+  %20 = load i64, ptr %5, align 8, !tbaa !5, !noalias !46
+  br label %21
+
+21:                                               ; preds = %8, %19
+  %22 = phi i64 [ %20, %19 ], [ %9, %8 ]
+  %23 = add i64 %22, -1
+  %24 = icmp ult i64 %23, 2
+  br i1 %24, label %25, label %38
+
+25:                                               ; preds = %21
+  %26 = icmp eq i64 %22, 2
+  %27 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %28 = load double, ptr %27, align 8, !noalias !46
+  %29 = bitcast double %28 to i64
+  %30 = sitofp i64 %29 to double
+  %31 = select i1 %7, double %30, double %28
+  %32 = getelementptr inbounds nuw i8, ptr %1, i64 40
+  %33 = load double, ptr %32, align 8, !noalias !46
+  %34 = bitcast double %33 to i64
+  %35 = sitofp i64 %34 to double
+  %36 = select i1 %26, double %33, double %35
+  %37 = fcmp oeq double %31, %36
+  br label %41
+
+38:                                               ; preds = %21, %17
+  %39 = load ptr, ptr @stderr, align 8, !tbaa !12, !noalias !46
+  %40 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %39, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.15) #11, !noalias !46
+  tail call void @abort() #12, !noalias !46
+  unreachable
+
+41:                                               ; preds = %11, %25
+  %42 = phi i1 [ %37, %25 ], [ %16, %11 ]
+  %43 = zext i1 %42 to i8
+  store i64 3, ptr %0, align 8, !tbaa !5
+  %44 = getelementptr inbounds nuw i8, ptr %0, i64 8
+  store i8 %43, ptr %44, align 8, !tbaa !10
+  ret void
+}
+
+; Function Attrs: mustprogress nofree nounwind uwtable
+define dso_local void @chirart_display(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
+  %5 = load i64, ptr %4, align 8, !tbaa !5
+  switch i64 %5, label %16 [
+    i64 1, label %6
+    i64 2, label %11
   ]
 
-4:                                                ; preds = %2
-  %5 = load ptr, ptr @stdout, align 8, !tbaa !12
-  %6 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %7 = load i64, ptr %6, align 8, !tbaa !10
-  %8 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %5, ptr noundef nonnull @.str.15, i64 noundef %7) #11
-  br label %17
+6:                                                ; preds = %3
+  %7 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %8 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %9 = load i64, ptr %8, align 8, !tbaa !10
+  %10 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %7, ptr noundef nonnull @.str.16, i64 noundef %9) #13
+  br label %19
 
-9:                                                ; preds = %2
-  %10 = load ptr, ptr @stdout, align 8, !tbaa !12
-  %11 = getelementptr inbounds nuw i8, ptr %1, i64 8
-  %12 = load double, ptr %11, align 8
-  %13 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %10, ptr noundef nonnull @.str.16, double noundef %12) #11
-  br label %17
+11:                                               ; preds = %3
+  %12 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %13 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %14 = load double, ptr %13, align 8
+  %15 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %12, ptr noundef nonnull @.str.17, double noundef %14) #13
+  br label %19
 
-14:                                               ; preds = %2
-  %15 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %16 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %15, ptr noundef nonnull @.str.8, ptr noundef nonnull @.str.17) #9
-  tail call void @abort() #10
+16:                                               ; preds = %3
+  %17 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %18 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %17, ptr noundef nonnull @.str.9, ptr noundef nonnull @.str.18) #11
+  tail call void @abort() #12
   unreachable
 
-17:                                               ; preds = %4, %9
+19:                                               ; preds = %6, %11
   store i64 0, ptr %0, align 8, !tbaa !5
   ret void
 }
 
 ; Function Attrs: mustprogress nofree nounwind uwtable
-define dso_local void @chirart_newline(ptr nocapture noundef writeonly initializes((0, 8)) %0) local_unnamed_addr #2 {
-  %2 = load ptr, ptr @stdout, align 8, !tbaa !12
-  %3 = tail call i32 @fputc(i32 10, ptr %2)
+define dso_local void @chirart_newline(ptr nocapture noundef writeonly initializes((0, 8)) %0, ptr nocapture noundef readnone %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
+  %4 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %5 = tail call i32 @fputc(i32 10, ptr %4)
   store i64 0, ptr %0, align 8, !tbaa !5
   ret void
 }
 
 ; Function Attrs: mustprogress norecurse uwtable
-define dso_local noundef i32 @main() local_unnamed_addr #4 {
+define dso_local noundef i32 @main() local_unnamed_addr #6 {
   %1 = alloca %"struct.chirart::Var", align 8
-  call void @llvm.lifetime.start.p0(i64 24, ptr nonnull %1) #11
+  call void @llvm.lifetime.start.p0(i64 24, ptr nonnull %1) #13
   store i64 0, ptr %1, align 8, !tbaa !5
-  call void @chiracg_main(ptr noundef nonnull %1, ptr noundef null)
-  call void @llvm.lifetime.end.p0(i64 24, ptr nonnull %1) #11
+  call void @chiracg_main(ptr noundef nonnull %1, ptr noundef null, ptr noundef null)
+  call void @llvm.lifetime.end.p0(i64 24, ptr nonnull %1) #13
   ret i32 0
 }
 
-declare void @chiracg_main(ptr noundef, ptr noundef) local_unnamed_addr #5
+declare void @chiracg_main(ptr noundef, ptr noundef, ptr noundef) local_unnamed_addr #7
 
 ; Function Attrs: nofree nounwind
-declare noundef i32 @fprintf(ptr nocapture noundef, ptr nocapture noundef readonly, ...) local_unnamed_addr #6
+declare noundef i32 @fprintf(ptr nocapture noundef, ptr nocapture noundef readonly, ...) local_unnamed_addr #8
 
 ; Function Attrs: cold nofree noreturn nounwind
-declare void @abort() local_unnamed_addr #7
+declare void @abort() local_unnamed_addr #9
 
 ; Function Attrs: nofree nounwind
-declare noundef i32 @fputc(i32 noundef, ptr nocapture noundef) local_unnamed_addr #8
+declare noundef i32 @fputc(i32 noundef, ptr nocapture noundef) local_unnamed_addr #10
 
 attributes #0 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #1 = { mustprogress nocallback nofree nosync nounwind willreturn memory(argmem: readwrite) }
 attributes #2 = { mustprogress nofree nounwind uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
 attributes #3 = { mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: read) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #4 = { mustprogress norecurse uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #5 = { "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #6 = { nofree nounwind "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #7 = { cold nofree noreturn nounwind "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
-attributes #8 = { nofree nounwind }
-attributes #9 = { cold nounwind }
-attributes #10 = { noreturn nounwind }
-attributes #11 = { nounwind }
+attributes #4 = { mustprogress nofree norecurse nosync nounwind willreturn memory(none) uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #5 = { mustprogress uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #6 = { mustprogress norecurse uwtable "min-legal-vector-width"="0" "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #7 = { "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #8 = { nofree nounwind "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #9 = { cold nofree noreturn nounwind "no-trapping-math"="true" "stack-protector-buffer-size"="8" "target-cpu"="x86-64" "target-features"="+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87" "tune-cpu"="generic" }
+attributes #10 = { nofree nounwind }
+attributes #11 = { cold nounwind }
+attributes #12 = { noreturn nounwind }
+attributes #13 = { nounwind }
 
 !llvm.module.flags = !{!0, !1, !2, !3}
 !llvm.ident = !{!4}
@@ -860,30 +1078,33 @@ attributes #11 = { nounwind }
 !16 = !{}
 !17 = !{!18, !18, i64 0}
 !18 = !{!"p1 _ZTSN7chirart3VarE", !14, i64 0}
-!19 = !{!20}
-!20 = distinct !{!20, !21, !"_ZN7chirartplERKNS_3VarES2_: argument 0"}
-!21 = distinct !{!21, !"_ZN7chirartplERKNS_3VarES2_"}
+!19 = !{!20, !20, i64 0}
+!20 = !{!"long", !8, i64 0}
+!21 = !{!"branch_weights", i32 2146410, i32 -2147483648, i32 2145337238}
 !22 = !{!23}
-!23 = distinct !{!23, !24, !"_ZN7chirartmiERKNS_3VarES2_: argument 0"}
-!24 = distinct !{!24, !"_ZN7chirartmiERKNS_3VarES2_"}
+!23 = distinct !{!23, !24, !"_ZN7chirartplERKNS_3VarES2_: argument 0"}
+!24 = distinct !{!24, !"_ZN7chirartplERKNS_3VarES2_"}
 !25 = !{!26}
-!26 = distinct !{!26, !27, !"_ZN7chirartmlERKNS_3VarES2_: argument 0"}
-!27 = distinct !{!27, !"_ZN7chirartmlERKNS_3VarES2_"}
+!26 = distinct !{!26, !27, !"_ZN7chirartmiERKNS_3VarES2_: argument 0"}
+!27 = distinct !{!27, !"_ZN7chirartmiERKNS_3VarES2_"}
 !28 = !{!29}
-!29 = distinct !{!29, !30, !"_ZN7chirartdvERKNS_3VarES2_: argument 0"}
-!30 = distinct !{!30, !"_ZN7chirartdvERKNS_3VarES2_"}
+!29 = distinct !{!29, !30, !"_ZN7chirartmlERKNS_3VarES2_: argument 0"}
+!30 = distinct !{!30, !"_ZN7chirartmlERKNS_3VarES2_"}
 !31 = !{!32}
-!32 = distinct !{!32, !33, !"_ZN7chirartltERKNS_3VarES2_: argument 0"}
-!33 = distinct !{!33, !"_ZN7chirartltERKNS_3VarES2_"}
+!32 = distinct !{!32, !33, !"_ZN7chirartdvERKNS_3VarES2_: argument 0"}
+!33 = distinct !{!33, !"_ZN7chirartdvERKNS_3VarES2_"}
 !34 = !{!35}
-!35 = distinct !{!35, !36, !"_ZN7chirartleERKNS_3VarES2_: argument 0"}
-!36 = distinct !{!36, !"_ZN7chirartleERKNS_3VarES2_"}
+!35 = distinct !{!35, !36, !"_ZN7chirartltERKNS_3VarES2_: argument 0"}
+!36 = distinct !{!36, !"_ZN7chirartltERKNS_3VarES2_"}
 !37 = !{!38}
-!38 = distinct !{!38, !39, !"_ZN7chirartgtERKNS_3VarES2_: argument 0"}
-!39 = distinct !{!39, !"_ZN7chirartgtERKNS_3VarES2_"}
+!38 = distinct !{!38, !39, !"_ZN7chirartleERKNS_3VarES2_: argument 0"}
+!39 = distinct !{!39, !"_ZN7chirartleERKNS_3VarES2_"}
 !40 = !{!41}
-!41 = distinct !{!41, !42, !"_ZN7chirartgeERKNS_3VarES2_: argument 0"}
-!42 = distinct !{!42, !"_ZN7chirartgeERKNS_3VarES2_"}
+!41 = distinct !{!41, !42, !"_ZN7chirartgtERKNS_3VarES2_: argument 0"}
+!42 = distinct !{!42, !"_ZN7chirartgtERKNS_3VarES2_"}
 !43 = !{!44}
-!44 = distinct !{!44, !45, !"_ZN7chirarteqERKNS_3VarES2_: argument 0"}
-!45 = distinct !{!45, !"_ZN7chirarteqERKNS_3VarES2_"}
+!44 = distinct !{!44, !45, !"_ZN7chirartgeERKNS_3VarES2_: argument 0"}
+!45 = distinct !{!45, !"_ZN7chirartgeERKNS_3VarES2_"}
+!46 = !{!47}
+!47 = distinct !{!47, !48, !"_ZN7chirarteqERKNS_3VarES2_: argument 0"}
+!48 = distinct !{!48, !"_ZN7chirarteqERKNS_3VarES2_"}

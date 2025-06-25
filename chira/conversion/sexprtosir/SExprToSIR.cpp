@@ -81,17 +81,19 @@ struct LexScope {
   LexScope(mlir::OpBuilder &builder) : builder(builder) {}
   LexScope(const LexScope &) = delete;
 
-  bool exists(llvm::StringRef id) {
-    auto *scope = this;
-    while (scope) {
-      auto it = scope->current_scope.find(id);
-      if (it != scope->current_scope.end()) {
-        return true;
-      }
-      scope = scope->parent_scope;
+  mlir::Value buildPrim(const PrimOp &p) {
+    auto var_type = sir::VarType::get(builder.getContext());
+    auto symbol = mlir::StringAttr::get(builder.getContext(), p.name);
+    auto arity = mlir::IntegerAttr::get(builder.getI64Type(), p.num_args);
+    if (p.kind == PrimOp::Arith) {
+      return builder.create<sir::ArithPrimOp>(builder.getUnknownLoc(), var_type,
+                                              symbol, arity);
+    } else if (p.kind == PrimOp::IO) {
+      return builder.create<sir::IOPrimOp>(builder.getUnknownLoc(), var_type,
+                                           symbol, arity);
     }
 
-    return false;
+    llvm_unreachable("unexpected primitive operation");
   }
 
   mlir::Value get(llvm::StringRef id) {
@@ -111,6 +113,10 @@ struct LexScope {
     }
 
     if (!target_opt) {
+      if (auto it = prim_map.find(id); it != prim_map.end()) {
+        return buildPrim(it->second);
+      }
+
       return {};
     }
 
@@ -255,8 +261,6 @@ struct SExprToSIRConversionPass
         return visitSet(expr, builder, scope);
       } else if (id == "let") {
         return visitLet(expr, builder, scope);
-      } else if (auto p = getPrimOp(id); p && !scope.exists(id)) {
-        return visitPrim(*p, expr, builder, scope);
       }
     }
 
@@ -539,37 +543,6 @@ struct SExprToSIRConversionPass
              "S-expression";
       return {};
     }
-  }
-
-  mlir::Value visitPrim(const PrimOp &p, sexpr::SOp expr,
-                        mlir::OpBuilder &builder, LexScope &scope) {
-    auto exprs = expr.getExprs();
-    if (exprs.size() - 1 != p.num_args) {
-      mlir::emitError(expr.getLoc()) << "expected " << p.num_args
-                                     << " arguments in (" << p.symbol << " ..)";
-      return {};
-    }
-
-    std::vector<mlir::Value> operands;
-    for (auto e : exprs.drop_front(1)) {
-      if (auto v = visitOp(e.getDefiningOp(), builder, scope)) {
-        operands.emplace_back(v);
-      } else {
-        return {};
-      }
-    }
-
-    auto var_type = sir::VarType::get(&getContext());
-    auto symbol = mlir::StringAttr::get(builder.getContext(), p.name);
-    if (p.kind == PrimOp::Arith) {
-      return builder.create<sir::ArithPrimOp>(expr->getLoc(), var_type, symbol,
-                                              operands);
-    } else if (p.kind == PrimOp::IO) {
-      return builder.create<sir::IOPrimOp>(expr->getLoc(), var_type, symbol,
-                                           operands);
-    }
-
-    llvm_unreachable("unexpected primitive operation");
   }
 
   mlir::Value visitLambda(sexpr::SOp expr, mlir::OpBuilder &builder,

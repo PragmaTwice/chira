@@ -39,6 +39,18 @@ def SIR_Var : TypeDef<SIR_Dialect, "Var"> {
 def SIR_Lambda : TypeDef<SIR_Dialect, "Lambda"> {
   let mnemonic = "lambda";
   let summary = "lambda in SIR dialect";
+
+  let parameters = (ins
+    // param_size + cap_size = size of block arguments,
+    // e.g. for `sir.lambda { x, y, z: ... } cap_size=1`,
+    // params are `x` and `y`, and `z` is a captured variable
+    "size_t":$param_size,
+    "size_t":$cap_size
+  );
+
+  let assemblyFormat = [{
+    `<` $param_size `,` $cap_size `>`
+  }];
 }
 
 class SIR_Op<string mnemonic, list<Trait> traits = []> :
@@ -159,13 +171,6 @@ def SIR_ClosureOp : SIR_Op<"closure"> {
 def SIR_LambdaOp : SIR_Op<"lambda"> {
   let summary = "create a lambda";
 
-  let arguments = (ins
-    // param_size + cap_size = size of block arguments,
-    // e.g. for `sir.lambda { x, y, z: ... } cap_size=1`,
-    // params are `x` and `y`, and `z` is a captured variable
-    Builtin_IntegerAttr:$cap_size
-  );
-
   let results = (outs
     SIR_Lambda:$res
   );
@@ -175,7 +180,7 @@ def SIR_LambdaOp : SIR_Op<"lambda"> {
   );
 
   let assemblyFormat = [{
-    $body attr-dict
+    type($res) $body attr-dict
   }];
 }
 
@@ -196,7 +201,7 @@ def SIR_BindOp : SIR_Op<"bind", [AttrSizedOperandSegments]> {
   );
 
   let assemblyFormat = [{
-    $lambdas type($caps) $caps attr-dict
+    type($lambdas) $lambdas type($caps) $caps attr-dict
   }];
 }
 
@@ -205,7 +210,7 @@ def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
 
   let arguments = (ins
     Builtin_StringAttr:$op,
-    Variadic<SIR_Var>:$args
+    Builtin_IntegerAttr:$arity
   );
 
   let results = (outs
@@ -213,7 +218,7 @@ def SIR_ArithPrimOp : SIR_Op<"arith_prim"> {
   );
 
   let assemblyFormat = [{
-    $op `(` $args `)` attr-dict
+    $op attr-dict
   }];
 }
 
@@ -222,7 +227,7 @@ def SIR_IOPrimOp : SIR_Op<"io_prim"> {
 
   let arguments = (ins
     Builtin_StringAttr:$op,
-    Variadic<SIR_Var>:$args
+    Builtin_IntegerAttr:$arity
   );
 
   let results = (outs
@@ -230,7 +235,7 @@ def SIR_IOPrimOp : SIR_Op<"io_prim"> {
   );
 
   let assemblyFormat = [{
-    $op `(` $args `)` attr-dict
+    $op attr-dict
   }];
 }
 
@@ -290,30 +295,7 @@ def SIR_FuncRefOp : SIR_Op<"func_ref"> {
   );
 
   let assemblyFormat = [{
-    $func attr-dict
-  }];
-}
-
-// `%f = sir.bind_ref f x y` is equivalent to
-// ```
-//  %f_l = sir.func_ref @f
-//  %f = sir.bind %f_l x y
-// ```
-// and it cannot be used for recursive functions
-def SIR_BindRefOp : SIR_Op<"bind_ref"> {
-  let summary = "bind a function symbol with its captures";
-
-  let arguments = (ins
-    Builtin_SymbolRefAttr:$func,
-    Variadic<SIR_Var>:$caps
-  );
-
-  let results = (outs
-    SIR_Var:$res
-  );
-
-  let assemblyFormat = [{
-    $func $caps attr-dict
+    type($res) $func attr-dict
   }];
 }
 
@@ -403,7 +385,7 @@ def SIR_ClosureFromEnvOp : SIR_Op<"closure_from_env"> {
   );
 
   let assemblyFormat = [{
-    $lambda type($env) $env attr-dict
+    type($lambda) $lambda type($env) $env attr-dict
   }];
 }
 
@@ -420,6 +402,36 @@ def SIR_AsBoolOp : SIR_Op<"as_bool"> {
 
   let assemblyFormat = [{
     $var attr-dict
+  }];
+}
+
+def SIR_Args : TypeDef<SIR_Dialect, "Args"> {
+  let mnemonic = "args";
+  let summary = "arguments in lambdas";
+
+  let parameters = (ins
+    "size_t":$size
+  );
+
+  let assemblyFormat = [{
+    `<` $size `>`
+  }];
+}
+
+def SIR_ArgsLoadOp : SIR_Op<"args_load"> {
+  let summary = "load a variable from arguments";
+
+  let arguments = (ins
+    SIR_Args:$args,
+    Builtin_IntegerAttr:$index
+  );
+
+  let results = (outs
+    SIR_Var:$res
+  );
+
+  let assemblyFormat = [{
+    type($args) $args `[` $index `]` attr-dict
   }];
 }
 
