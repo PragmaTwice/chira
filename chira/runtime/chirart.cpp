@@ -57,6 +57,7 @@ extern "C" {
 
 [[gnu::always_inline]] void chirart_add(Var *v, Args args, Env) {
   *v = Var(0l);
+#pragma unroll
   for (auto &a : *args) {
     *v = *v + a;
   }
