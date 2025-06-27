@@ -22,9 +22,12 @@
 
 inline namespace chirart {
 
-[[gnu::always_inline]] inline void assert(bool cond, const char *msg) {
+template <typename... Args>
+[[gnu::always_inline]] void assert(bool cond, const char *msg, Args &&...args) {
   if (!cond) [[unlikely]] {
-    fprintf(stderr, "Assertion failed: %s\n", msg);
+    fprintf(stderr, "Assertion failed: ");
+    fprintf(stderr, msg, args...);
+    fprintf(stderr, "\n");
     std::abort();
   }
 }
@@ -310,6 +313,9 @@ static_assert(sizeof(Var) == 3 * sizeof(uint64_t));
 struct ArgList {
   size_t size;
   Var args[];
+
+  Var *begin() { return args; }
+  Var *end() { return args + size; }
 };
 
 inline constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
@@ -322,12 +328,16 @@ inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
 
 [[gnu::always_inline]] inline Var Var::operator()(Args args) {
   auto param_size = getParamSize();
+
+  auto expected_size = param_size & PARAM_VAL_MASK;
   if ((param_size & PARAM_FLAG_BIT) == 0) {
-    assert(args->size == (param_size & PARAM_VAL_MASK),
-           "Argument size mismatch");
+    assert(args->size == expected_size,
+           "Argument size mismatch (expected %zu, got %zu)", expected_size,
+           args->size);
   } else {
-    assert(args->size >= (param_size & PARAM_VAL_MASK),
-           "Argument size mismatch");
+    assert(args->size >= expected_size,
+           "Argument size mismatch (expected no less than %zu, got %zu)",
+           expected_size, args->size);
   }
 
   Var res;

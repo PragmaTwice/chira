@@ -56,8 +56,10 @@ extern "C" {
 }
 
 [[gnu::always_inline]] void chirart_add(Var *v, Args args, Env) {
-  auto &l = args->args[0], &r = args->args[1];
-  *v = l + r;
+  *v = Var(0l);
+  for (auto &a : *args) {
+    *v = *v + a;
+  }
 }
 [[gnu::always_inline]] void chirart_sub(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];

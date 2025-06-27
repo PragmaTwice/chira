@@ -25,6 +25,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <charconv>
+#include <cstddef>
 
 namespace chira {
 
@@ -43,12 +44,28 @@ struct PrimOp {
       : symbol(symbol), name(name), kind(kind), num_args(num_args) {}
 };
 
+inline constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
+inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
+
+inline size_t NoLessThan(size_t size) {
+  assert(size < (1 << 15) && "Parameter size too large");
+  return PARAM_FLAG_BIT | (size & PARAM_VAL_MASK);
+}
+
 static std::vector<PrimOp> prim_list = {
-    {"+", "add", PrimOp::Arith, 2},       {"-", "sub", PrimOp::Arith, 2},
-    {"*", "mul", PrimOp::Arith, 2},       {"/", "div", PrimOp::Arith, 2},
-    {"<", "lt", PrimOp::Arith, 2},        {">", "gt", PrimOp::Arith, 2},
-    {"<=", "le", PrimOp::Arith, 2},       {">=", "ge", PrimOp::Arith, 2},
-    {"=", "eq", PrimOp::Arith, 2},        {"display", "display", PrimOp::IO, 1},
+    {"+", "add", PrimOp::Arith, NoLessThan(1)},
+    {"-", "sub", PrimOp::Arith, 2},
+    {"*", "mul", PrimOp::Arith, 2},
+    {"/", "div", PrimOp::Arith, 2},
+    {"<", "lt", PrimOp::Arith, 2},
+    {">", "gt", PrimOp::Arith, 2},
+    {"<=", "le", PrimOp::Arith, 2},
+    {">=", "ge", PrimOp::Arith, 2},
+    {"=", "eq", PrimOp::Arith, 2},
+    {"not", "not", PrimOp::Arith, 1},
+    {"and", "and", PrimOp::Arith, 2},
+    {"or", "or", PrimOp::Arith, 2},
+    {"display", "display", PrimOp::IO, 1},
     {"newline", "newline", PrimOp::IO, 0}};
 
 static std::map<llvm::StringRef, PrimOp> prim_map = [] {
