@@ -80,29 +80,15 @@ private:
       Var *left;
       Var *right;
     } pair;
+    struct {
+      uint64_t a;
+      uint64_t b;
+    } underlying;
   } data;
 
   [[gnu::always_inline]] void copyData(const Var &other) {
-    if (tag == INT) {
-      data.int_ = other.data.int_;
-    } else if (tag == FLOAT) {
-      data.float_ = other.data.float_;
-    } else if (tag == BOOL) {
-      data.bool_ = other.data.bool_;
-    } else if (tag >= PRIM_OP_BEGIN && tag < CLOSURE_END) {
-      data.closure.lambda = other.data.closure.lambda;
-      data.closure.env = other.data.closure.env;
-    } else if (tag == STRING || tag == SYMBOL) {
-      data.string.data = other.data.string.data;
-      data.string.size = other.data.string.size;
-    } else if (tag == PAIR) {
-      data.pair.left = other.data.pair.left;
-      data.pair.right = other.data.pair.right;
-    } else if (tag == NIL || tag == UNSPEC) {
-      // nothing to copy for NIL or UNSPEC
-    } else {
-      assert(false, "Invalid tag in Var");
-    }
+    data.underlying.a = other.data.underlying.a;
+    data.underlying.b = other.data.underlying.b;
   }
 
 public:
@@ -182,10 +168,8 @@ public:
   [[gnu::always_inline]] size_t getParamSize() const {
     assert(isClosure() || isPrimOp(),
            "Var is not a closure or primary operation");
-    if (isClosure())
-      return tag - CLOSURE_BEGIN;
-    else
-      return tag - PRIM_OP_BEGIN;
+
+    return tag - (isClosure() ? CLOSURE_BEGIN : PRIM_OP_BEGIN);
   }
 
   [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
@@ -272,9 +256,35 @@ public:
       return Var(l.getInt() == r.getInt());
     } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
       return Var(l.getFloat() == r.getFloat());
+    } else if (l.isBool() && r.isBool()) {
+      return Var(l.getBool() == r.getBool());
     }
 
     unreachable("Invalid type to perform equality check");
+  }
+
+  [[gnu::always_inline]] Var operator!() {
+    if (isBool()) {
+      return Var(!getBool());
+    }
+
+    unreachable("Invalid type to perform logical negation");
+  }
+
+  [[gnu::always_inline]] friend Var operator&&(const Var &l, const Var &r) {
+    if (l.isBool() && r.isBool()) {
+      return Var(l.getBool() && r.getBool());
+    }
+
+    unreachable("Invalid type to perform logical AND");
+  }
+
+  [[gnu::always_inline]] friend Var operator||(const Var &l, const Var &r) {
+    if (l.isBool() && r.isBool()) {
+      return Var(l.getBool() || r.getBool());
+    }
+
+    unreachable("Invalid type to perform logical OR");
   }
 
   [[gnu::always_inline]] void Display() const {
@@ -284,6 +294,9 @@ public:
     } else if (isFloat()) {
       fprintf(stdout, "%lf", getFloat());
       return;
+    } else if (isBool()) {
+      fprintf(stdout, getBool() ? "#t" : "#f");
+      return;
     }
 
     unreachable("Not implemented yet");
@@ -291,6 +304,8 @@ public:
 
   [[gnu::always_inline]] inline Var operator()(Args args);
 };
+
+static_assert(sizeof(Var) == 3 * sizeof(uint64_t));
 
 struct ArgList {
   size_t size;
@@ -306,8 +321,6 @@ inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
 }
 
 [[gnu::always_inline]] inline Var Var::operator()(Args args) {
-  Var res;
-
   auto param_size = getParamSize();
   if ((param_size & PARAM_FLAG_BIT) == 0) {
     assert(args->size == (param_size & PARAM_VAL_MASK),
@@ -316,13 +329,13 @@ inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
     assert(args->size >= (param_size & PARAM_VAL_MASK),
            "Argument size mismatch");
   }
+
+  Var res;
   getLambda()(&res, args, getEnv());
   return res;
 }
 
-static_assert(sizeof(Var) == 24);
-
-inline void Newline() { fprintf(stdout, "\n"); }
+[[gnu::always_inline]] inline void Newline() { fprintf(stdout, "\n"); }
 
 } // namespace chirart
 

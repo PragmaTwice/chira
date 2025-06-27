@@ -15,79 +15,101 @@
 #include "chirart.h"
 
 extern "C" {
-void chirart_unspec(Var *r) { *r = Var(); }
+[[gnu::always_inline]] void chirart_unspec(Var *r) { *r = Var(); }
 
-void chirart_int(Var *r, int64_t num) { *r = Var(num); }
-void chirart_float(Var *r, double num) { *r = Var(num); }
-void chirart_closure(Var *r, Lambda lambda, Env env, size_t param_size) {
+[[gnu::always_inline]] void chirart_int(Var *r, int64_t num) { *r = Var(num); }
+[[gnu::always_inline]] void chirart_float(Var *r, double num) { *r = Var(num); }
+[[gnu::always_inline]] void chirart_closure(Var *r, Lambda lambda, Env env,
+                                            size_t param_size) {
   *r = Var(lambda, env, param_size);
 }
-void chirart_prim_op(Var *r, void *func_ptr, size_t param_size) {
+[[gnu::always_inline]] void chirart_prim_op(Var *r, void *func_ptr,
+                                            size_t param_size) {
   *r = Var(func_ptr, param_size);
 }
 
-void chirart_set(Var *l, const Var *r) { *l = *r; }
+[[gnu::always_inline]] void chirart_set(Var *l, const Var *r) { *l = *r; }
 
-Lambda chirart_get_lambda(const Var *v) { return v->getLambda(); }
-Env chirart_get_env(const Var *v) { return v->getEnv(); }
-
-Var *chirart_env_load(Env env, size_t idx) { return env[idx]; }
-void chirart_env_store(Env env, size_t idx, Var *v) { env[idx] = v; }
-
-void chirart_args_set_size(Args args, size_t size) { args->size = size; }
-Var *chirart_args_load(Args args, size_t idx) { return &args->args[idx]; }
-void chirart_args_store(Args args, size_t idx, Var *v) { args->args[idx] = *v; }
-
-void chirart_call(Var *res, Var *callee, Args args) {
-  assert(args->size == callee->getParamSize(), "Argument size mismatch");
-  callee->getLambda()(res, args, callee->getEnv());
+[[gnu::always_inline]] Var *chirart_env_load(Env env, size_t idx) {
+  return env[idx];
+}
+[[gnu::always_inline]] void chirart_env_store(Env env, size_t idx, Var *v) {
+  env[idx] = v;
 }
 
-bool chirart_get_bool(const Var *v) { return v->getBool(); }
+[[gnu::always_inline]] void chirart_args_set_size(Args args, size_t size) {
+  args->size = size;
+}
+[[gnu::always_inline]] Var *chirart_args_load(Args args, size_t idx) {
+  return &args->args[idx];
+}
+[[gnu::always_inline]] void chirart_args_store(Args args, size_t idx, Var *v) {
+  args->args[idx] = *v;
+}
 
-void chirart_add(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_call(Var *res, Var *callee, Args args) {
+  *res = (*callee)(args);
+}
+
+[[gnu::always_inline]] bool chirart_get_bool(const Var *v) {
+  return v->getBool();
+}
+
+[[gnu::always_inline]] void chirart_add(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l + r;
 }
-void chirart_sub(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_sub(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l - r;
 }
-void chirart_mul(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_mul(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l * r;
 }
-void chirart_div(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_div(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l / r;
 }
-void chirart_lt(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_lt(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l < r;
 }
-void chirart_le(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_le(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l <= r;
 }
-void chirart_gt(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_gt(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l > r;
 }
-void chirart_ge(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_ge(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l >= r;
 }
-void chirart_eq(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_eq(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l == r;
 }
+[[gnu::always_inline]] void chirart_not(Var *v, Args args, Env) {
+  auto &l = args->args[0];
+  *v = !l;
+}
+[[gnu::always_inline]] void chirart_and(Var *v, Args args, Env) {
+  auto &l = args->args[0], &r = args->args[1];
+  *v = l && r;
+}
+[[gnu::always_inline]] void chirart_or(Var *v, Args args, Env) {
+  auto &l = args->args[0], &r = args->args[1];
+  *v = l || r;
+}
 
-void chirart_display(Var *v, Args args, Env) {
+[[gnu::always_inline]] void chirart_display(Var *v, Args args, Env) {
   auto &l = args->args[0];
   l.Display();
   chirart_unspec(v);
 }
-void chirart_newline(Var *v, Args, Env) {
+[[gnu::always_inline]] void chirart_newline(Var *v, Args, Env) {
   Newline();
   chirart_unspec(v);
 }
