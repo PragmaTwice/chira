@@ -212,6 +212,9 @@ int main(int argc, char *argv[]) {
   llvm::LLVMContext llvm_context;
   auto llvm_module = chira::target::translateToLLVM(
       module, llvm_context, input->getBufferIdentifier());
+  if (!llvm_module) {
+    return 1;
+  }
 
   if (OutputLLVM) {
     llvm_module->print(os, nullptr);

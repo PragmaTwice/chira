@@ -38,7 +38,10 @@ $_ZN7chirart3Var5EqualERKS0_S2_ = comdat any
 @.str.28 = private unnamed_addr constant [4 x i8] c"%lf\00", align 1
 @.str.29 = private unnamed_addr constant [3 x i8] c"#t\00", align 1
 @.str.30 = private unnamed_addr constant [3 x i8] c"#f\00", align 1
-@.str.31 = private unnamed_addr constant [20 x i8] c"Not implemented yet\00", align 1
+@.str.31 = private unnamed_addr constant [4 x i8] c"'()\00", align 1
+@.str.32 = private unnamed_addr constant [5 x i8] c"%.*s\00", align 1
+@.str.33 = private unnamed_addr constant [15 x i8] c"'<unspecified>\00", align 1
+@.str.34 = private unnamed_addr constant [20 x i8] c"Not implemented yet\00", align 1
 
 ; Function Attrs: alwaysinline mustprogress nofree norecurse nosync nounwind willreturn memory(argmem: write) uwtable
 define dso_local void @chirart_unspec(ptr nocapture noundef writeonly initializes((0, 8)) %0) local_unnamed_addr #0 {
@@ -1404,10 +1407,13 @@ define dso_local void @chirart_or(ptr nocapture noundef writeonly %0, ptr nocapt
 define dso_local void @chirart_display(ptr nocapture noundef writeonly %0, ptr nocapture noundef readonly %1, ptr nocapture noundef readnone %2) local_unnamed_addr #2 {
   %4 = getelementptr inbounds nuw i8, ptr %1, i64 8
   %5 = load i64, ptr %4, align 8, !tbaa !5
-  switch i64 %5, label %23 [
+  switch i64 %5, label %37 [
     i64 1, label %6
     i64 2, label %11
     i64 3, label %16
+    i64 6, label %23
+    i64 4, label %26
+    i64 0, label %34
   ]
 
 6:                                                ; preds = %3
@@ -1415,14 +1421,14 @@ define dso_local void @chirart_display(ptr nocapture noundef writeonly %0, ptr n
   %8 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %9 = load i64, ptr %8, align 8, !tbaa !10
   %10 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %7, ptr noundef nonnull @.str.27, i64 noundef %9) #16
-  br label %26
+  br label %40
 
 11:                                               ; preds = %3
   %12 = load ptr, ptr @stdout, align 8, !tbaa !12
   %13 = getelementptr inbounds nuw i8, ptr %1, i64 16
   %14 = load double, ptr %13, align 8
   %15 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %12, ptr noundef nonnull @.str.28, double noundef %14) #16
-  br label %26
+  br label %40
 
 16:                                               ; preds = %3
   %17 = load ptr, ptr @stdout, align 8, !tbaa !12
@@ -1431,15 +1437,35 @@ define dso_local void @chirart_display(ptr nocapture noundef writeonly %0, ptr n
   %20 = trunc nuw i8 %19 to i1
   %21 = select i1 %20, ptr @.str.29, ptr @.str.30
   %22 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %17, ptr noundef nonnull %21) #16
-  br label %26
+  br label %40
 
 23:                                               ; preds = %3
-  %24 = load ptr, ptr @stderr, align 8, !tbaa !12
-  %25 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %24, ptr noundef nonnull @.str.10, ptr noundef nonnull @.str.31) #17
+  %24 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %25 = tail call i64 @fwrite(ptr nonnull @.str.31, i64 3, i64 1, ptr %24)
+  br label %40
+
+26:                                               ; preds = %3
+  %27 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %28 = getelementptr inbounds nuw i8, ptr %1, i64 24
+  %29 = load i64, ptr %28, align 8, !tbaa !10
+  %30 = trunc i64 %29 to i32
+  %31 = getelementptr inbounds nuw i8, ptr %1, i64 16
+  %32 = load ptr, ptr %31, align 8, !tbaa !10
+  %33 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %27, ptr noundef nonnull @.str.32, i32 noundef %30, ptr noundef %32) #16
+  br label %40
+
+34:                                               ; preds = %3
+  %35 = load ptr, ptr @stdout, align 8, !tbaa !12
+  %36 = tail call i64 @fwrite(ptr nonnull @.str.33, i64 14, i64 1, ptr %35)
+  br label %40
+
+37:                                               ; preds = %3
+  %38 = load ptr, ptr @stderr, align 8, !tbaa !12
+  %39 = tail call i32 (ptr, ptr, ...) @fprintf(ptr noundef %38, ptr noundef nonnull @.str.10, ptr noundef nonnull @.str.34) #17
   tail call void @abort() #15
   unreachable
 
-26:                                               ; preds = %6, %11, %16
+40:                                               ; preds = %6, %11, %16, %23, %26, %34
   store i64 0, ptr %0, align 8, !tbaa !5
   ret void
 }

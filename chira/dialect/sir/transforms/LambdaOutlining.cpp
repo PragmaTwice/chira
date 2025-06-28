@@ -29,7 +29,7 @@ namespace chira::sir {
 namespace {
 
 struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
-  ConvertClosure(mlir::MLIRContext *context, size_t &lambda_count)
+  ConvertClosure(mlir::MLIRContext *context, std::atomic<size_t> &lambda_count)
       : mlir::OpRewritePattern<sir::ClosureOp>(context),
         lambda_count(lambda_count) {}
 
@@ -39,7 +39,7 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
     auto ip = rewriter.saveInsertionPoint();
     rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
 
-    auto name = "lambda_" + std::to_string(lambda_count++);
+    auto name = "lambda_" + std::to_string(lambda_count.fetch_add(1));
     auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
     auto i64 = mlir::IntegerType::get(getContext(), 64);
@@ -64,11 +64,11 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
   }
 
 private:
-  size_t &lambda_count;
+  std::atomic<size_t> &lambda_count;
 };
 
 struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
-  ConvertLambda(mlir::MLIRContext *context, size_t &lambda_count)
+  ConvertLambda(mlir::MLIRContext *context, std::atomic<size_t> &lambda_count)
       : mlir::OpRewritePattern<sir::LambdaOp>(context),
         lambda_count(lambda_count) {}
 
@@ -78,7 +78,7 @@ struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
     auto ip = rewriter.saveInsertionPoint();
     rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
 
-    auto name = "lambda_" + std::to_string(lambda_count++);
+    auto name = "lambda_" + std::to_string(lambda_count.fetch_add(1));
     auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
     auto func = rewriter.create<sir::FuncOp>(
@@ -92,7 +92,7 @@ struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
   }
 
 private:
-  size_t &lambda_count;
+  std::atomic<size_t> &lambda_count;
 };
 
 struct LambdaOutliningPass
@@ -118,7 +118,7 @@ struct LambdaOutliningPass
     module.getRegion().takeBody(new_module.getRegion());
 
     mlir::RewritePatternSet patterns(context);
-    size_t lambda_count = 1;
+    std::atomic<size_t> lambda_count = 1;
     patterns.add<ConvertClosure, ConvertLambda>(context, lambda_count);
 
     if (failed(mlir::applyPatternsGreedily(

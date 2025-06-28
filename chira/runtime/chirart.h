@@ -369,6 +369,15 @@ public:
     } else if (isBool()) {
       fprintf(stdout, getBool() ? "#t" : "#f");
       return;
+    } else if (isNil()) {
+      fprintf(stdout, "'()");
+      return;
+    } else if (isString()) {
+      fprintf(stdout, "%.*s", (int)getStringSize(), getStringData());
+      return;
+    } else if (isUnspecified()) {
+      fprintf(stdout, "'<unspecified>");
+      return;
     }
 
     unreachable("Not implemented yet");

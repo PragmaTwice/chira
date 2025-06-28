@@ -25,6 +25,7 @@
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -126,6 +127,36 @@ struct ConvertUnspecOp : mlir::ConvertOpToLLVMPattern<sir::UnspecifiedOp> {
     auto void_type = mlir::LLVM::LLVMVoidType::get(getContext());
     auto var = allocVar(op, rewriter);
     makeLLVMFuncCall("chirart_unspec", op, rewriter, void_type, {var});
+    rewriter.replaceOp(op, var);
+    return mlir::success();
+  }
+};
+
+struct ConvertStrOp : mlir::ConvertOpToLLVMPattern<sir::StrOp> {
+  using ConvertOpToLLVMPattern<sir::StrOp>::ConvertOpToLLVMPattern;
+  mlir::LogicalResult
+  matchAndRewrite(sir::StrOp op, OpAdaptor adaptor,
+                  mlir::ConversionPatternRewriter &rewriter) const override {
+    auto str = op.getStr().getValue();
+    auto ip = rewriter.saveInsertionPoint();
+    rewriter.setInsertionPointToStart(
+        op->getParentOfType<mlir::ModuleOp>().getBody());
+    auto name = "chiracg_str_" + llvm::utohexstr(llvm::hash_value(str), true);
+    auto type =
+        mlir::LLVM::LLVMArrayType::get(rewriter.getI8Type(), str.size() + 1);
+    auto str_with_null = str.str() + '\0';
+    auto global = rewriter.create<mlir::LLVM::GlobalOp>(
+        op->getLoc(), type, true, mlir::LLVM::Linkage::Internal, name,
+        rewriter.getStringAttr(str_with_null));
+    rewriter.restoreInsertionPoint(ip);
+
+    auto var = allocVar(op, rewriter);
+    auto ptr = rewriter.create<mlir::LLVM::AddressOfOp>(op->getLoc(), global);
+    makeLLVMFuncCall("chirart_string", op, rewriter, getVoidType(),
+                     {var, ptr,
+                      rewriter.create<mlir::LLVM::ConstantOp>(
+                          op->getLoc(), rewriter.getI64Type(),
+                          rewriter.getI64IntegerAttr(str.size()))});
     rewriter.replaceOp(op, var);
     return mlir::success();
   }
@@ -358,7 +389,7 @@ struct SIRToLLVMConversionPass
         .add<ConvertNumOp, ConvertUnspecOp, ConvertEnvLoadOp, ConvertAsBoolOp,
              ConvertArithPrimOp, ConvertIOPrimOp, ConvertCallOp, ConvertEnvOp,
              ConvertEnvStoreOp, ConvertClosureFromEnvOp, ConvertFuncRefOp,
-             ConvertSetOp, ConvertArgsLoadOp>(converter);
+             ConvertSetOp, ConvertArgsLoadOp, ConvertStrOp>(converter);
     mlir::cf::populateControlFlowToLLVMConversionPatterns(converter, patterns);
     mlir::populateFuncToLLVMConversionPatterns(converter, patterns);
 
