@@ -88,13 +88,13 @@ llvm::cl::opt<size_t>
                       llvm::cl::desc("optimization level (0-3, default: 3)"),
                       llvm::cl::init(3), llvm::cl::cat(CLICat));
 
-llvm::cl::opt<std::string> ChiraRTDir(
-    "r", llvm::cl::desc("path of the directory contains chirart LLVM IR file"),
-    llvm::cl::init("."), llvm::cl::cat(CLICat));
-
 llvm::cl::opt<bool> PrintIR(
     "p", llvm::cl::desc("print IR after and before all transformation passes"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
+
+constexpr const char ChirartCode[] = {
+#include "chira/runtime/chirart.ll.inc"
+    , 0};
 
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
@@ -221,10 +221,12 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  auto chirart_filename =
-      ChiraRTDir + "/chirart." + llvm::sys::getDefaultTargetTriple() + ".ll";
+  auto chirart_buffer = llvm::MemoryBuffer::getMemBuffer(
+      llvm::StringRef(ChirartCode, sizeof ChirartCode - 1), "chirart.ll");
+
   llvm::SMDiagnostic err;
-  auto chirart = llvm::parseIRFile(chirart_filename, err, llvm_context);
+  auto chirart =
+      llvm::parseIR(chirart_buffer->getMemBufferRef(), err, llvm_context);
   if (!chirart) {
     err.print("", llvm::errs());
     return 1;

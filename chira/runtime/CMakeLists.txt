@@ -12,9 +12,20 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_subdirectory(dialect)
-add_subdirectory(conversion)
-add_subdirectory(parser)
-add_subdirectory(runtime)
-add_subdirectory(target)
-add_subdirectory(tools)
+add_custom_command(
+    OUTPUT
+        ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll.inc
+        ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll
+    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/generate-ir.sh
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/generate-ir.sh
+        ${CMAKE_CURRENT_SOURCE_DIR}/chirart.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/chirart.h
+)
+
+add_custom_target(chirart-generate-ir
+    DEPENDS
+        ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll.inc
+        ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll
+)

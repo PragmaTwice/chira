@@ -26,3 +26,7 @@ target_link_libraries(chira-cli PUBLIC
     SIRToSCF
     SIRToLLVM
 )
+
+add_dependencies(chira-cli
+    chirart-generate-ir
+)
