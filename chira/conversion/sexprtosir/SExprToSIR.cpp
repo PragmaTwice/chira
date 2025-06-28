@@ -14,6 +14,7 @@
 
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
 #include "chira/dialect/sexpr/SExprOps.h"
+#include "chira/dialect/sir/PrimOps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
@@ -30,52 +31,6 @@
 namespace chira {
 
 namespace {
-
-struct PrimOp {
-  enum Kind { Arith, IO };
-
-  llvm::StringRef symbol;
-  llvm::StringRef name;
-  Kind kind;
-  size_t num_args;
-
-  PrimOp(llvm::StringRef symbol, llvm::StringRef name, Kind kind,
-         size_t num_args)
-      : symbol(symbol), name(name), kind(kind), num_args(num_args) {}
-};
-
-inline constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
-inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
-
-inline size_t NoLessThan(size_t size) {
-  assert(size < (1 << 15) && "Parameter size too large");
-  return PARAM_FLAG_BIT | (size & PARAM_VAL_MASK);
-}
-
-static std::vector<PrimOp> prim_list = {
-    {"+", "add", PrimOp::Arith, NoLessThan(1)},
-    {"-", "sub", PrimOp::Arith, 2},
-    {"*", "mul", PrimOp::Arith, 2},
-    {"/", "div", PrimOp::Arith, 2},
-    {"<", "lt", PrimOp::Arith, 2},
-    {">", "gt", PrimOp::Arith, 2},
-    {"<=", "le", PrimOp::Arith, 2},
-    {">=", "ge", PrimOp::Arith, 2},
-    {"=", "eq", PrimOp::Arith, 2},
-    {"not", "not", PrimOp::Arith, 1},
-    {"and", "and", PrimOp::Arith, 2},
-    {"or", "or", PrimOp::Arith, 2},
-    {"display", "display", PrimOp::IO, 1},
-    {"newline", "newline", PrimOp::IO, 0}};
-
-static std::map<llvm::StringRef, PrimOp> prim_map = [] {
-  std::map<llvm::StringRef, PrimOp> map;
-  for (const auto &op : prim_list) {
-    map.emplace(op.symbol, op);
-  }
-
-  return map;
-}();
 
 struct LexScope {
   enum Kind { Global, Local, Closure };
@@ -98,14 +53,15 @@ struct LexScope {
   LexScope(mlir::OpBuilder &builder) : builder(builder) {}
   LexScope(const LexScope &) = delete;
 
-  mlir::Value buildPrim(const PrimOp &p) {
+  mlir::Value buildPrim(const sir::PrimOp &p) {
     auto var_type = sir::VarType::get(builder.getContext());
     auto symbol = mlir::StringAttr::get(builder.getContext(), p.name);
-    auto arity = mlir::IntegerAttr::get(builder.getI64Type(), p.num_args);
-    if (p.kind == PrimOp::Arith) {
+    auto arity =
+        mlir::IntegerAttr::get(builder.getI64Type(), p.num_args.Encoded());
+    if (p.kind == sir::PrimOp::Arith) {
       return builder.create<sir::ArithPrimOp>(builder.getUnknownLoc(), var_type,
                                               symbol, arity);
-    } else if (p.kind == PrimOp::IO) {
+    } else if (p.kind == sir::PrimOp::IO) {
       return builder.create<sir::IOPrimOp>(builder.getUnknownLoc(), var_type,
                                            symbol, arity);
     }
@@ -130,8 +86,8 @@ struct LexScope {
     }
 
     if (!target_opt) {
-      if (auto it = prim_map.find(id); it != prim_map.end()) {
-        return buildPrim(it->second);
+      if (auto op = sir::PrimOps::getBySymbol(id)) {
+        return buildPrim(*op);
       }
 
       return {};
@@ -244,14 +200,6 @@ struct SExprToSIRConversionPass
     }
 
     llvm_unreachable("unexpected operation type");
-  }
-
-  std::optional<PrimOp> getPrimOp(llvm::StringRef id) {
-    if (auto it = prim_map.find(id); it != prim_map.end()) {
-      return it->second;
-    }
-
-    return std::nullopt;
   }
 
   mlir::Value visitExpr(sexpr::SOp expr, mlir::OpBuilder &builder,

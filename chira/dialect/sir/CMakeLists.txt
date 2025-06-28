@@ -17,6 +17,7 @@ add_mlir_dialect(SIROps sir)
 add_mlir_dialect_library(SIROps
   SIROps.h
   SIROps.cpp
+  PrimOps.h
 
   DEPENDS
   MLIRSIROpsIncGen
