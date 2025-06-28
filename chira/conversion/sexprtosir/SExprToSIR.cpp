@@ -56,14 +56,12 @@ struct LexScope {
   mlir::Value buildPrim(const sir::PrimOp &p) {
     auto var_type = sir::VarType::get(builder.getContext());
     auto symbol = mlir::StringAttr::get(builder.getContext(), p.name);
-    auto arity =
-        mlir::IntegerAttr::get(builder.getI64Type(), p.num_args.Encoded());
     if (p.kind == sir::PrimOp::Arith) {
       return builder.create<sir::ArithPrimOp>(builder.getUnknownLoc(), var_type,
-                                              symbol, arity);
+                                              symbol);
     } else if (p.kind == sir::PrimOp::IO) {
       return builder.create<sir::IOPrimOp>(builder.getUnknownLoc(), var_type,
-                                           symbol, arity);
+                                           symbol);
     }
 
     llvm_unreachable("unexpected primitive operation");

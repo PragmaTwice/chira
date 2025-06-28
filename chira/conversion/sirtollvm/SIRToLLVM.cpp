@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "chira/conversion/sirtollvm/SIRToLLVM.h"
+#include "chira/dialect/sir/PrimOps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
 #include "mlir/Conversion/FuncToLLVM/ConvertFuncToLLVM.h"
@@ -268,8 +269,9 @@ template <typename Op> struct ConvertPrimOp : mlir::ConvertOpToLLVMPattern<Op> {
          this->getVoidPtrType()});
 
     auto var = allocVar(op, rewriter);
+    auto op_info = sir::PrimOps::getByName(opcode).value();
     auto arity = rewriter.create<mlir::LLVM::ConstantOp>(
-        op->getLoc(), rewriter.getI64Type(), adaptor.getArity());
+        op->getLoc(), rewriter.getI64Type(), op_info.num_args.Encoded());
     makeLLVMFuncCall("chirart_prim_op", op, rewriter, this->getVoidType(),
                      {var, address, arity});
     rewriter.replaceOp(op, var);
