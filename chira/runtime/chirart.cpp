@@ -27,6 +27,14 @@ extern "C" {
                                             size_t param_size) {
   *r = Var(func_ptr, param_size);
 }
+[[gnu::always_inline]] void chirart_bool(Var *r, bool b) { *r = Var(b); }
+[[gnu::always_inline]] void chirart_string(Var *r, char *data, size_t size) {
+  *r = Var(data, size);
+}
+[[gnu::always_inline]] void chirart_pair(Var *r, Var *left, Var *right) {
+  *r = Var(left, right);
+}
+[[gnu::always_inline]] void chirart_nil(Var *r) { *r = Var(nil); }
 
 [[gnu::always_inline]] void chirart_set(Var *l, const Var *r) { *l = *r; }
 
@@ -93,6 +101,14 @@ extern "C" {
 [[gnu::always_inline]] void chirart_eq(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];
   *v = l == r;
+}
+[[gnu::always_inline]] void chirart_seq(Var *v, Args args, Env) {
+  auto &l = args->args[0], &r = args->args[1];
+  *v = Var::Eq(l, r);
+}
+[[gnu::always_inline]] void chirart_deq(Var *v, Args args, Env) {
+  auto &l = args->args[0], &r = args->args[1];
+  *v = Var::Equal(l, r);
 }
 [[gnu::always_inline]] void chirart_not(Var *v, Args args, Env) {
   auto &l = args->args[0];

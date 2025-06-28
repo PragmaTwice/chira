@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 inline namespace chirart {
 
@@ -44,6 +45,9 @@ using Args = ArgList *;
 using Env = Var **;
 using Lambda = void (*)(Var *, Args, Env);
 
+inline struct Nil {
+} nil;
+
 struct Var {
 private:
   enum Tag : size_t {
@@ -54,7 +58,6 @@ private:
     STRING = 4, // { data ptr, size i64 }
     PAIR = 5,   // { left ptr, right ptr }
     NIL = 6,    // nil
-    SYMBOL = 7, // { data ptr, size i64 }
 
     // param_size: 1bit flag (param_size >> 15) | 15bit size (param_size &
     // 0x7fff), if flag == 0, the provided arg size must equal to size if flag
@@ -76,7 +79,7 @@ private:
       Env env;
     } closure;
     struct {
-      void *data;
+      char *data;
       size_t size;
     } string;
     struct {
@@ -111,6 +114,15 @@ public:
     data.closure.lambda = (Lambda)func_ptr;
     data.closure.env = nullptr;
   }
+  [[gnu::always_inline]] Var(char *data_ptr, size_t size) : tag(STRING) {
+    data.string.data = data_ptr;
+    data.string.size = size;
+  }
+  [[gnu::always_inline]] Var(Var *left, Var *right) : tag(PAIR) {
+    data.pair.left = left;
+    data.pair.right = right;
+  }
+  [[gnu::always_inline]] Var(Nil) : tag(NIL) {}
 
   [[gnu::always_inline]] Var(const Var &other) : tag(other.tag) {
     copyData(other);
@@ -135,7 +147,6 @@ public:
   }
   [[gnu::always_inline]] bool isPair() const { return tag == PAIR; }
   [[gnu::always_inline]] bool isNil() const { return tag == NIL; }
-  [[gnu::always_inline]] bool isSymbol() const { return tag == SYMBOL; }
 
   [[gnu::always_inline]] int64_t getInt() const {
     assert(isInt(), "Var is not an integer");
@@ -173,6 +184,26 @@ public:
            "Var is not a closure or primary operation");
 
     return tag - (isClosure() ? CLOSURE_BEGIN : PRIM_OP_BEGIN);
+  }
+
+  [[gnu::always_inline]] char *getStringData() const {
+    assert(isString(), "Var is not a string");
+    return data.string.data;
+  }
+
+  [[gnu::always_inline]] size_t getStringSize() const {
+    assert(isString(), "Var is not a string");
+    return data.string.size;
+  }
+
+  [[gnu::always_inline]] Var *getLeft() const {
+    assert(isPair(), "Var is not a pair");
+    return data.pair.left;
+  }
+
+  [[gnu::always_inline]] Var *getRight() const {
+    assert(isPair(), "Var is not a pair");
+    return data.pair.right;
   }
 
   [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
@@ -221,7 +252,7 @@ public:
       return Var(l.getFloat() < r.getFloat());
     }
 
-    unreachable("Invalid type to perform comparison");
+    unreachable("Invalid type to perform < comparison");
   }
 
   [[gnu::always_inline]] friend Var operator<=(const Var &l, const Var &r) {
@@ -231,7 +262,7 @@ public:
       return Var(l.getFloat() <= r.getFloat());
     }
 
-    unreachable("Invalid type to perform comparison");
+    unreachable("Invalid type to perform <= comparison");
   }
 
   [[gnu::always_inline]] friend Var operator>(const Var &l, const Var &r) {
@@ -241,7 +272,7 @@ public:
       return Var(l.getFloat() > r.getFloat());
     }
 
-    unreachable("Invalid type to perform comparison");
+    unreachable("Invalid type to perform > comparison");
   }
 
   [[gnu::always_inline]] friend Var operator>=(const Var &l, const Var &r) {
@@ -251,7 +282,7 @@ public:
       return Var(l.getFloat() >= r.getFloat());
     }
 
-    unreachable("Invalid type to perform comparison");
+    unreachable("Invalid type to perform >= comparison");
   }
 
   [[gnu::always_inline]] friend Var operator==(const Var &l, const Var &r) {
@@ -259,11 +290,49 @@ public:
       return Var(l.getInt() == r.getInt());
     } else if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
       return Var(l.getFloat() == r.getFloat());
-    } else if (l.isBool() && r.isBool()) {
-      return Var(l.getBool() == r.getBool());
     }
 
-    unreachable("Invalid type to perform equality check");
+    unreachable("Invalid type to perform numeric equality check");
+  }
+
+  [[gnu::always_inline]] static Var Eq(const Var &l, const Var &r) {
+    if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return l == r;
+    } else if (l.isBool() && r.isBool()) {
+      return Var(l.getBool() == r.getBool());
+    } else if (l.isNil() && r.isNil()) {
+      return Var(true);
+    } else if (l.isString() && r.isString()) {
+      return Var(l.getStringSize() == r.getStringSize() &&
+                 l.getStringData() == r.getStringData());
+    } else if (l.isPair() && r.isPair()) {
+      return Var(l.getLeft() == r.getLeft() && l.getRight() == r.getRight());
+    } else if (l.isUnspecified() && r.isUnspecified()) {
+      return Var(false);
+    }
+
+    unreachable("Invalid type to perform shallow equality check");
+  }
+
+  [[gnu::always_inline]] static Var Equal(const Var &l, const Var &r) {
+    if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
+      return l == r;
+    } else if (l.isBool() && r.isBool()) {
+      return Var(l.getBool() == r.getBool());
+    } else if (l.isNil() && r.isNil()) {
+      return Var(true);
+    } else if (l.isString() && r.isString()) {
+      return Var(
+          l.getStringSize() == r.getStringSize() &&
+          memcmp(l.getStringData(), r.getStringData(), l.getStringSize()) == 0);
+    } else if (l.isPair() && r.isPair()) {
+      return Var(Equal(*l.getLeft(), *r.getLeft()) &&
+                 Equal(*l.getRight(), *r.getRight()));
+    } else if (l.isUnspecified() && r.isUnspecified()) {
+      return Var(false);
+    }
+
+    unreachable("Invalid type to perform deep equality check");
   }
 
   [[gnu::always_inline]] Var operator!() {
