@@ -19,14 +19,11 @@ add_executable(chira-cli
 target_link_libraries(chira-cli PUBLIC
     ChiraParser
     ChiraLLVMTarget
+    ChiraRuntime
     SExprTransforms
     SExprToSIR
     SIRTransforms
     SIRToFunc
     SIRToSCF
     SIRToLLVM
-)
-
-add_dependencies(chira-cli
-    chirart-generate-ir
 )

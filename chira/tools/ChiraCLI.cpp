@@ -20,6 +20,7 @@
 #include "chira/dialect/sexpr/transforms/Passes.h"
 #include "chira/dialect/sir/transforms/Passes.h"
 #include "chira/parser/Parser.h"
+#include "chira/runtime/Runtime.h"
 #include "chira/target/LLVMTarget.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
@@ -91,10 +92,6 @@ llvm::cl::opt<size_t>
 llvm::cl::opt<bool> PrintIR(
     "p", llvm::cl::desc("print IR after and before all transformation passes"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
-
-constexpr const char ChirartCode[] = {
-#include "chira/runtime/chirart.ll.inc"
-    , 0};
 
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
@@ -221,17 +218,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  auto chirart_buffer = llvm::MemoryBuffer::getMemBuffer(
-      llvm::StringRef(ChirartCode, sizeof ChirartCode - 1), "chirart.ll");
-
-  llvm::SMDiagnostic err;
-  auto chirart =
-      llvm::parseIR(chirart_buffer->getMemBufferRef(), err, llvm_context);
-  if (!chirart) {
-    err.print("", llvm::errs());
-    return 1;
-  }
-
+  auto chirart = chira::rt::createRuntimeModule(llvm_context);
   if (llvm::Linker::linkModules(*llvm_module, std::move(chirart))) {
     llvm::errs() << "failed to link chirart\n";
     return 1;
@@ -245,6 +232,11 @@ int main(int argc, char *argv[]) {
   llvm::OptimizationLevel opt_levels[] = {
       llvm::OptimizationLevel::O0, llvm::OptimizationLevel::O1,
       llvm::OptimizationLevel::O2, llvm::OptimizationLevel::O3};
+  if (OptimizationLevel >= std::size(opt_levels)) {
+    llvm::errs() << "error: invalid optimization level: " << OptimizationLevel
+                 << " (must be in range [0, 3])\n";
+    return 1;
+  }
 
   chira::target::optimizeLLVMModule(*llvm_module,
                                     opt_levels[OptimizationLevel]);

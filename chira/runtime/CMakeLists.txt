@@ -29,3 +29,12 @@ add_custom_target(chirart-generate-ir
         ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll.inc
         ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll
 )
+
+add_library(ChiraRuntime
+    Runtime.h
+    Runtime.cpp
+)
+
+add_dependencies(ChiraRuntime
+    chirart-generate-ir
+)
