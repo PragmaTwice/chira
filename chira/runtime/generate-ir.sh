@@ -16,6 +16,8 @@
 
 set -e
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+INPUT_FILE=$SCRIPT_DIR/$1
+OUTPUT_FILE=./${1%.*}.ll
 set -ex
-clang -std=c++17 -nostdlib++ -O3 -Wall -S -emit-llvm -o ./chirart.ll "$SCRIPT_DIR/chirart.cpp"
-cat ./chirart.ll | xxd -i - ./chirart.ll.inc
+clang -std=c++17 -nostdlib++ -O3 -Wall -S -emit-llvm -o $OUTPUT_FILE $INPUT_FILE
+cat $OUTPUT_FILE | xxd -i - $OUTPUT_FILE.inc

@@ -218,9 +218,15 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  auto chirart = chira::rt::createRuntimeModule(llvm_context);
-  if (llvm::Linker::linkModules(*llvm_module, std::move(chirart))) {
+  if (llvm::Linker::linkModules(*llvm_module,
+                                chira::rt::createRuntimeModule(llvm_context))) {
     llvm::errs() << "failed to link chirart\n";
+    return 1;
+  }
+
+  if (llvm::Linker::linkModules(
+          *llvm_module, chira::rt::createRuntimeLibcMainModule(llvm_context))) {
+    llvm::errs() << "failed to link chirart_main\n";
     return 1;
   }
 

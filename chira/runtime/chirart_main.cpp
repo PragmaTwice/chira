@@ -12,16 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CHIRA_RUNTIME_RUNTIME
-#define CHIRA_RUNTIME_RUNTIME
+#include "chirart.h"
 
-#include "llvm/IR/Module.h"
-
-namespace chira::rt {
-
-std::unique_ptr<llvm::Module> createRuntimeModule(llvm::LLVMContext &ctx);
-std::unique_ptr<llvm::Module> createRuntimeLibcMainModule(llvm::LLVMContext &ctx);
-
+extern "C" {
+void chiracg_main(Var *, Args, Env);
 }
 
-#endif // CHIRA_RUNTIME_RUNTIME
+int main() {
+  Var r;
+  chiracg_main(&r, nullptr, nullptr);
+}

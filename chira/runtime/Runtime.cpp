@@ -25,18 +25,35 @@ static constexpr const char ChirartCode[] = {
 #include "chira/runtime/chirart.ll.inc"
     , 0};
 
-std::unique_ptr<llvm::Module> createRuntimeModule(llvm::LLVMContext &ctx) {
-  auto chirart_buffer = llvm::MemoryBuffer::getMemBuffer(
-      llvm::StringRef(ChirartCode, sizeof ChirartCode - 1), "chirart.ll");
+static constexpr const char ChirartMainCode[] = {
+#include "chira/runtime/chirart_main.ll.inc"
+    , 0};
+
+static std::unique_ptr<llvm::Module> createModule(llvm::LLVMContext &ctx,
+                                                  llvm::StringRef code,
+                                                  llvm::StringRef name) {
+  auto buffer = llvm::MemoryBuffer::getMemBuffer(code, name);
 
   llvm::SMDiagnostic err;
-  auto chirart = llvm::parseIR(chirart_buffer->getMemBufferRef(), err, ctx);
-  if (!chirart) {
+  auto module = llvm::parseIR(buffer->getMemBufferRef(), err, ctx);
+  if (!module) {
     err.print("", llvm::errs());
     std::exit(1);
   }
 
-  return chirart;
+  return module;
+}
+
+std::unique_ptr<llvm::Module> createRuntimeModule(llvm::LLVMContext &ctx) {
+  return createModule(ctx, llvm::StringRef(ChirartCode, sizeof ChirartCode - 1),
+                      "chirart.ll");
+}
+
+std::unique_ptr<llvm::Module>
+createRuntimeLibcMainModule(llvm::LLVMContext &ctx) {
+  return createModule(
+      ctx, llvm::StringRef(ChirartMainCode, sizeof ChirartMainCode - 1),
+      "chirart_main.ll");
 }
 
 } // namespace chira::rt

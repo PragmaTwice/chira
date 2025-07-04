@@ -65,7 +65,6 @@ extern "C" {
 
 [[gnu::always_inline]] void chirart_add(Var *v, Args args, Env) {
   *v = Var(0l);
-#pragma unroll
   for (auto &a : *args) {
     *v = *v + a;
   }
@@ -132,11 +131,4 @@ extern "C" {
   Newline();
   chirart_unspec(v);
 }
-
-void chiracg_main(Var *, Args, Env);
-}
-
-int main() {
-  Var r;
-  chiracg_main(&r, nullptr, nullptr);
 }
