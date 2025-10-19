@@ -233,8 +233,8 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  mlir::registerLLVMDialectTranslation(*module->getContext());
-  mlir::registerBuiltinDialectTranslation(*module.getContext());
+  mlir::registerLLVMDialectTranslation(context);
+  mlir::registerBuiltinDialectTranslation(context);
 
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
