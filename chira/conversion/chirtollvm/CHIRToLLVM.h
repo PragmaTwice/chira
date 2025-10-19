@@ -12,16 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CHIRA_CONVERSION_SIRTOLLVM_SIRTOLLVM
-#define CHIRA_CONVERSION_SIRTOLLVM_SIRTOLLVM
+#ifndef CHIRA_CONVERSION_CHIRTOLLVM_CHIRTOLLVM
+#define CHIRA_CONVERSION_CHIRTOLLVM_CHIRTOLLVM
 
 #include "mlir/Conversion/LLVMCommon/TypeConverter.h"
+#include "mlir/Pass/Pass.h"
 
 namespace chira {
 
-void populateSIRToLLVMConversionPatterns(mlir::LLVMTypeConverter &converter,
-                                         mlir::RewritePatternSet &patterns);
+void populateCHIRToLLVMConversionPatterns(mlir::LLVMTypeConverter &converter,
+                                          mlir::RewritePatternSet &patterns);
 
-}
+std::unique_ptr<mlir::Pass> createCHIRToLLVMConversionPass();
 
-#endif // CHIRA_CONVERSION_SIRTOLLVM_SIRTOLLVM
+} // namespace chira
+
+#endif // CHIRA_CONVERSION_CHIRTOLLVM_CHIRTOLLVM

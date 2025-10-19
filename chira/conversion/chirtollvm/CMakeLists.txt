@@ -12,8 +12,16 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_subdirectory(sexprtosir)
-add_subdirectory(chirtofunc)
-add_subdirectory(sirtollvm)
-add_subdirectory(chirtollvm)
-add_subdirectory(sirtoscf)
+add_mlir_library(CHIRToLLVM
+    CHIRToLLVM.cpp
+    CHIRToLLVM.h
+
+    LINK_LIBS PUBLIC
+    MLIRIR
+    SIRToLLVM
+    CHIROps
+    MLIRLLVMDialect
+    MLIRLLVMCommonConversion
+    MLIRControlFlowToLLVM
+    MLIRFuncToLLVM
+)

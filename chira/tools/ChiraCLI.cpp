@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "chira/conversion/chirtofunc/CHIRToFunc.h"
+#include "chira/conversion/chirtollvm/CHIRToLLVM.h"
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
-#include "chira/conversion/sirtollvm/SIRToLLVM.h"
 #include "chira/conversion/sirtoscf/SIRToSCF.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
 #include "chira/dialect/sexpr/transforms/Passes.h"
@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
 
     pm.addPass(chira::createCHIRToFuncConversionPass());
     pm.addPass(mlir::createConvertSCFToCFPass());
-    pm.addPass(chira::createSIRToLLVMConversionPass());
+    pm.addPass(chira::createCHIRToLLVMConversionPass());
     pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());
 
     if (mlir::failed(pm.run(module))) {

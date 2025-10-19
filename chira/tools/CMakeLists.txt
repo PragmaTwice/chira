@@ -24,6 +24,6 @@ target_link_libraries(chira PUBLIC
     SIRTransforms
     CHIRToFunc
     SIRToSCF
-    SIRToLLVM
+    CHIRToLLVM
     MLIRExecutionEngine
 )
