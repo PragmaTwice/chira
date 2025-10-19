@@ -102,7 +102,7 @@ llvm::cl::opt<bool> PrintIR(
 int main(int argc, char *argv[]) {
   llvm::cl::HideUnrelatedOptions(CLICat);
   llvm::cl::ParseCommandLineOptions(
-      argc, argv, "Chira CLI - MLIR-based Scheme compiler and runtime\n");
+      argc, argv, "Chira - an MLIR-based Scheme JIT compiler and runtime\n");
 
   mlir::MLIRContext context;
   context.disableMultithreading(PrintIR);
