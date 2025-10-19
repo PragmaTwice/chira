@@ -315,7 +315,7 @@ public:
     unreachable("Invalid type to perform shallow equality check");
   }
 
-  [[gnu::always_inline]] static Var Equal(const Var &l, const Var &r) {
+  static Var Equal(const Var &l, const Var &r) {
     if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
       return l == r;
     } else if (l.isBool() && r.isBool()) {
