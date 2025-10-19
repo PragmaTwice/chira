@@ -24,36 +24,19 @@ add_custom_command(
         ${CMAKE_CURRENT_SOURCE_DIR}/chirart.h
 )
 
-add_custom_command(
-    OUTPUT
-        ${CMAKE_CURRENT_BINARY_DIR}/chirart_main.ll.inc
-        ${CMAKE_CURRENT_BINARY_DIR}/chirart_main.ll
-    COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/generate-ir.sh chirart_main.cpp
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    DEPENDS
-        ${CMAKE_CURRENT_SOURCE_DIR}/generate-ir.sh
-        ${CMAKE_CURRENT_SOURCE_DIR}/chirart_main.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/chirart.h
-)
-
 add_custom_target(chirart-generate-ir
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll.inc
         ${CMAKE_CURRENT_BINARY_DIR}/chirart.ll
 )
 
-add_custom_target(chirart-generate-ir-main
-    DEPENDS
-        ${CMAKE_CURRENT_BINARY_DIR}/chirart_main.ll.inc
-        ${CMAKE_CURRENT_BINARY_DIR}/chirart_main.ll
-)
-
 add_library(ChiraRuntime
     Runtime.h
     Runtime.cpp
+    chirart.h
+    chirart.cpp
 )
 
 add_dependencies(ChiraRuntime
     chirart-generate-ir
-    chirart-generate-ir-main
 )

@@ -21,17 +21,21 @@
 #include "chira/dialect/sir/transforms/Passes.h"
 #include "chira/parser/Parser.h"
 #include "chira/runtime/Runtime.h"
-#include "chira/target/LLVMTarget.h"
+#include "chira/runtime/chirart.h"
 #include "mlir/Conversion/SCFToControlFlow/SCFToControlFlow.h"
 #include "mlir/Dialect/LLVMIR/Transforms/Passes.h"
+#include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/IR/Diagnostics.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
+#include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Transforms/Passes.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/Linker/Linker.h"
-#include "llvm/Passes/OptimizationLevel.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SMLoc.h"
@@ -39,6 +43,7 @@
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
+#include <memory>
 #include <system_error>
 
 llvm::cl::OptionCategory CLICat("chira-cli options");
@@ -53,7 +58,7 @@ llvm::cl::opt<std::string>
                    llvm::cl::init("a.out"), llvm::cl::cat(CLICat));
 
 llvm::cl::opt<bool>
-    MacroExpanderOnly("E",
+    MacroExpanderOnly("expand-macro",
                       llvm::cl::desc("only run the macro expander, and output "
                                      "the source code after expansion"),
                       llvm::cl::init(false), llvm::cl::cat(CLICat));
@@ -61,36 +66,31 @@ llvm::cl::opt<bool>
 llvm::cl::opt<size_t>
     MaxLineLength("max-line-length",
                   llvm::cl::desc("maximum line length for the output source "
-                                 "code (combined with -E, default: "
+                                 "code (combined with -expand-macro, default: "
                                  "80)"),
                   llvm::cl::init(chira::sexpr::Printer::MAX_LINE_LENGTH),
                   llvm::cl::cat(CLICat));
 
 llvm::cl::opt<bool>
-    OutputSIR("s",
+    OutputSIR("sir",
               llvm::cl::desc("transform the input program to SIR and output it "
                              "in the MLIR SIR text form"),
               llvm::cl::init(false), llvm::cl::cat(CLICat));
 
 llvm::cl::opt<bool> OutputLLVM(
-    "l",
+    "llvmir",
     llvm::cl::desc(
         "transform the input program to LLVM IR and output it in text form"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
 
-llvm::cl::opt<bool> OutputLinkedLLVM(
-    "m",
-    llvm::cl::desc("transform the input program to LLVM IR, link it with "
-                   "chirart and output it in text form"),
+llvm::cl::opt<bool> OutputObject(
+    "object",
+    llvm::cl::desc("compile the input program to object file and dump it"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
 
-llvm::cl::opt<size_t>
-    OptimizationLevel("O",
-                      llvm::cl::desc("optimization level (0-3, default: 3)"),
-                      llvm::cl::init(3), llvm::cl::cat(CLICat));
-
 llvm::cl::opt<bool> PrintIR(
-    "p", llvm::cl::desc("print IR after and before all transformation passes"),
+    "print-ir",
+    llvm::cl::desc("print IR before and after all transformation passes"),
     llvm::cl::init(false), llvm::cl::cat(CLICat));
 
 int main(int argc, char *argv[]) {
@@ -206,54 +206,43 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  llvm::LLVMContext llvm_context;
-  auto llvm_module = chira::target::translateToLLVM(
-      module, llvm_context, input->getBufferIdentifier());
-  if (!llvm_module) {
-    return 1;
-  }
-
   if (OutputLLVM) {
-    llvm_module->print(os, nullptr);
+    module->print(os, flags);
     return 0;
   }
 
-  if (llvm::Linker::linkModules(*llvm_module,
-                                chira::rt::createRuntimeModule(llvm_context))) {
-    llvm::errs() << "failed to link chirart\n";
+  mlir::registerLLVMDialectTranslation(*module->getContext());
+  mlir::registerBuiltinDialectTranslation(*module.getContext());
+
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
+
+  mlir::ExecutionEngineOptions options = {.llvmModuleBuilder =
+                                              chira::rt::buildLLVMModule,
+                                          .enableObjectDump = true};
+  auto engine_exp = mlir::ExecutionEngine::create(module, options);
+  if (!engine_exp) {
+    llvm::errs() << "failed to initialize the execution engine: "
+                 << engine_exp.takeError() << "\n";
     return 1;
   }
 
-  if (llvm::Linker::linkModules(
-          *llvm_module, chira::rt::createRuntimeLibcMainModule(llvm_context))) {
-    llvm::errs() << "failed to link chirart_main\n";
+  auto engine = std::move(*engine_exp);
+  auto main_res = engine->lookup("chiracg_main");
+  if (!main_res) {
+    llvm::errs() << "failed to lookup entry function: " << main_res.takeError()
+                 << "\n";
     return 1;
   }
 
-  if (OutputLinkedLLVM) {
-    llvm_module->print(os, nullptr);
+  if (OutputObject) {
+    engine->dumpToObjectFile(OutputFilename);
     return 0;
   }
 
-  llvm::OptimizationLevel opt_levels[] = {
-      llvm::OptimizationLevel::O0, llvm::OptimizationLevel::O1,
-      llvm::OptimizationLevel::O2, llvm::OptimizationLevel::O3};
-  if (OptimizationLevel >= std::size(opt_levels)) {
-    llvm::errs() << "error: invalid optimization level: " << OptimizationLevel
-                 << " (must be in range [0, 3])\n";
-    return 1;
-  }
+  auto main = reinterpret_cast<chirart::Lambda>(*main_res);
 
-  chira::target::optimizeLLVMModule(*llvm_module,
-                                    opt_levels[OptimizationLevel]);
-
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmParsers();
-  llvm::InitializeAllAsmPrinters();
-
-  if (auto err = chira::target::emitObjectFile(*llvm_module, os)) {
-    llvm::errs() << err << "\n";
-    return 1;
-  }
+  chirart::Var var;
+  main(&var, nullptr, nullptr);
 }

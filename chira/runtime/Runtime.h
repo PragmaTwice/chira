@@ -15,13 +15,19 @@
 #ifndef CHIRA_RUNTIME_RUNTIME
 #define CHIRA_RUNTIME_RUNTIME
 
+#include "mlir/IR/Operation.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Passes/OptimizationLevel.h"
 
 namespace chira::rt {
 
 std::unique_ptr<llvm::Module> createRuntimeModule(llvm::LLVMContext &ctx);
-std::unique_ptr<llvm::Module> createRuntimeLibcMainModule(llvm::LLVMContext &ctx);
 
-}
+std::unique_ptr<llvm::Module> buildLLVMModule(mlir::Operation *op,
+                                              llvm::LLVMContext &ctx);
+
+void optimizeLLVMModule(llvm::Module &module, llvm::OptimizationLevel level);
+
+} // namespace chira::rt
 
 #endif // CHIRA_RUNTIME_RUNTIME

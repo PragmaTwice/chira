@@ -12,13 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_executable(chira-cli
+add_executable(chira
     ChiraCLI.cpp
 )
 
-target_link_libraries(chira-cli PUBLIC
+target_link_libraries(chira PUBLIC
     ChiraParser
-    ChiraLLVMTarget
     ChiraRuntime
     SExprTransforms
     SExprToSIR
@@ -26,4 +25,5 @@ target_link_libraries(chira-cli PUBLIC
     SIRToFunc
     SIRToSCF
     SIRToLLVM
+    MLIRExecutionEngine
 )

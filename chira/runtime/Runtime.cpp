@@ -13,8 +13,12 @@
 // limitations under the License.
 
 #include "chira/runtime/Runtime.h"
+#include "mlir/Target/LLVMIR/Export.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/Linker/Linker.h"
+#include "llvm/Passes/OptimizationLevel.h"
+#include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
 #include <memory>
@@ -23,10 +27,6 @@ namespace chira::rt {
 
 static constexpr const char ChirartCode[] = {
 #include "chira/runtime/chirart.ll.inc"
-    , 0};
-
-static constexpr const char ChirartMainCode[] = {
-#include "chira/runtime/chirart_main.ll.inc"
     , 0};
 
 static std::unique_ptr<llvm::Module> createModule(llvm::LLVMContext &ctx,
@@ -38,7 +38,7 @@ static std::unique_ptr<llvm::Module> createModule(llvm::LLVMContext &ctx,
   auto module = llvm::parseIR(buffer->getMemBufferRef(), err, ctx);
   if (!module) {
     err.print("", llvm::errs());
-    std::exit(1);
+    return nullptr;
   }
 
   return module;
@@ -49,11 +49,33 @@ std::unique_ptr<llvm::Module> createRuntimeModule(llvm::LLVMContext &ctx) {
                       "chirart.ll");
 }
 
-std::unique_ptr<llvm::Module>
-createRuntimeLibcMainModule(llvm::LLVMContext &ctx) {
-  return createModule(
-      ctx, llvm::StringRef(ChirartMainCode, sizeof ChirartMainCode - 1),
-      "chirart_main.ll");
+std::unique_ptr<llvm::Module> buildLLVMModule(mlir::Operation *op,
+                                              llvm::LLVMContext &ctx) {
+  auto module = mlir::translateModuleToLLVMIR(op, ctx);
+  if (llvm::Linker::linkModules(*module, chira::rt::createRuntimeModule(ctx))) {
+    llvm::errs() << "failed to link chirart\n";
+    return nullptr;
+  }
+  optimizeLLVMModule(*module, llvm::OptimizationLevel::O3);
+  return module;
+}
+
+void optimizeLLVMModule(llvm::Module &module, llvm::OptimizationLevel level) {
+  llvm::PassBuilder builder;
+
+  llvm::LoopAnalysisManager lam;
+  llvm::FunctionAnalysisManager fam;
+  llvm::CGSCCAnalysisManager cgam;
+  llvm::ModuleAnalysisManager mam;
+
+  builder.registerModuleAnalyses(mam);
+  builder.registerCGSCCAnalyses(cgam);
+  builder.registerFunctionAnalyses(fam);
+  builder.registerLoopAnalyses(lam);
+  builder.crossRegisterProxies(lam, fam, cgam, mam);
+
+  auto pm = builder.buildPerModuleDefaultPipeline(level);
+  pm.run(module, mam);
 }
 
 } // namespace chira::rt

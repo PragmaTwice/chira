@@ -24,7 +24,8 @@
 inline namespace chirart {
 
 template <typename... Args>
-[[gnu::always_inline]] void assert(bool cond, const char *msg, Args &&...args) {
+[[gnu::always_inline]] void assert_(bool cond, const char *msg,
+                                    Args &&...args) {
   if (!cond) [[unlikely]] {
     fprintf(stderr, "Assertion failed: ");
     fprintf(stderr, msg, args...);
@@ -104,13 +105,13 @@ public:
   [[gnu::always_inline]] Var(bool v) : tag(BOOL) { data.bool_ = v; }
   [[gnu::always_inline]] Var(Lambda lambda, Env env, size_t param_size)
       : tag(Tag(CLOSURE_BEGIN + param_size)) {
-    assert(param_size < (1 << 16), "Too many closure captures");
+    assert_(param_size < (1 << 16), "Too many closure captures");
     data.closure.lambda = lambda;
     data.closure.env = env;
   }
   [[gnu::always_inline]] Var(void *func_ptr, size_t param_size)
       : tag(Tag(PRIM_OP_BEGIN + param_size)) {
-    assert(param_size < (1 << 16), "Too many closure captures");
+    assert_(param_size < (1 << 16), "Too many closure captures");
     data.closure.lambda = (Lambda)func_ptr;
     data.closure.env = nullptr;
   }
@@ -149,13 +150,13 @@ public:
   [[gnu::always_inline]] bool isNil() const { return tag == NIL; }
 
   [[gnu::always_inline]] int64_t getInt() const {
-    assert(isInt(), "Var is not an integer");
+    assert_(isInt(), "Var is not an integer");
     return data.int_;
   }
 
   [[gnu::always_inline]] double getFloat() const {
-    assert(isFloat() || isInt(),
-           "Var is not a floating point number or integer");
+    assert_(isFloat() || isInt(),
+            "Var is not a floating point number or integer");
     if (isFloat())
       return data.float_;
     else
@@ -163,46 +164,46 @@ public:
   }
 
   [[gnu::always_inline]] bool getBool() const {
-    assert(isBool(), "Var is not a boolean");
+    assert_(isBool(), "Var is not a boolean");
     return data.bool_;
   }
 
   [[gnu::always_inline]] Lambda getLambda() const {
-    assert(isClosure() || isPrimOp(),
-           "Var is not a closure or primary operation");
+    assert_(isClosure() || isPrimOp(),
+            "Var is not a closure or primary operation");
     return data.closure.lambda;
   }
 
   [[gnu::always_inline]] Env getEnv() const {
-    assert(isClosure() || isPrimOp(),
-           "Var is not a closure or primary operation");
+    assert_(isClosure() || isPrimOp(),
+            "Var is not a closure or primary operation");
     return data.closure.env;
   }
 
   [[gnu::always_inline]] size_t getParamSize() const {
-    assert(isClosure() || isPrimOp(),
-           "Var is not a closure or primary operation");
+    assert_(isClosure() || isPrimOp(),
+            "Var is not a closure or primary operation");
 
     return tag - (isClosure() ? CLOSURE_BEGIN : PRIM_OP_BEGIN);
   }
 
   [[gnu::always_inline]] char *getStringData() const {
-    assert(isString(), "Var is not a string");
+    assert_(isString(), "Var is not a string");
     return data.string.data;
   }
 
   [[gnu::always_inline]] size_t getStringSize() const {
-    assert(isString(), "Var is not a string");
+    assert_(isString(), "Var is not a string");
     return data.string.size;
   }
 
   [[gnu::always_inline]] Var *getLeft() const {
-    assert(isPair(), "Var is not a pair");
+    assert_(isPair(), "Var is not a pair");
     return data.pair.left;
   }
 
   [[gnu::always_inline]] Var *getRight() const {
-    assert(isPair(), "Var is not a pair");
+    assert_(isPair(), "Var is not a pair");
     return data.pair.right;
   }
 
@@ -238,7 +239,7 @@ public:
 
   [[gnu::always_inline]] friend Var operator/(const Var &l, const Var &r) {
     if ((l.isFloat() || l.isInt()) && (r.isFloat() || r.isInt())) {
-      assert(r.getFloat() != 0, "Division by zero");
+      assert_(r.getFloat() != 0, "Division by zero");
       return Var(l.getFloat() / r.getFloat());
     }
 
@@ -400,7 +401,7 @@ inline constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
 inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
 
 [[gnu::always_inline]] inline uint16_t MakeParamSize(bool flag, size_t size) {
-  assert(size < (1 << 15), "Parameter size too large");
+  assert_(size < (1 << 15), "Parameter size too large");
   return (flag ? PARAM_FLAG_BIT : 0) | (size & PARAM_VAL_MASK);
 }
 
@@ -409,13 +410,13 @@ inline constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
 
   auto expected_size = param_size & PARAM_VAL_MASK;
   if ((param_size & PARAM_FLAG_BIT) == 0) {
-    assert(args->size == expected_size,
-           "Argument size mismatch (expected %zu, got %zu)", expected_size,
-           args->size);
+    assert_(args->size == expected_size,
+            "Argument size mismatch (expected %zu, got %zu)", expected_size,
+            args->size);
   } else {
-    assert(args->size >= expected_size,
-           "Argument size mismatch (expected no less than %zu, got %zu)",
-           expected_size, args->size);
+    assert_(args->size >= expected_size,
+            "Argument size mismatch (expected no less than %zu, got %zu)",
+            expected_size, args->size);
   }
 
   Var res;
