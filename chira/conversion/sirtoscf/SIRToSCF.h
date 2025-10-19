@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CHIRA_CONVERSION_SIRTOSCF_SEXPRTOSIR
-#define CHIRA_CONVERSION_SIRTOSCF_SEXPRTOSIR
+#ifndef CHIRA_CONVERSION_SIRTOSCF_SIRTOSCF
+#define CHIRA_CONVERSION_SIRTOSCF_SIRTOSCF
 
 #include "mlir/Pass/Pass.h"
 
@@ -23,4 +23,4 @@ std::unique_ptr<mlir::Pass> createSIRToSCFConversionPass();
 
 }
 
-#endif // CHIRA_CONVERSION_SIRTOSCF_SEXPRTOSIR
+#endif // CHIRA_CONVERSION_SIRTOSCF_SIRTOSCF
