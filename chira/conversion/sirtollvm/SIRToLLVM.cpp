@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "chira/conversion/sirtollvm/SIRToLLVM.h"
+#include "chira/dialect/chir/CHIROps.h"
 #include "chira/dialect/sir/PrimOps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "mlir/Conversion/ControlFlowToLLVM/ControlFlowToLLVM.h"
@@ -163,10 +164,10 @@ struct ConvertStrOp : mlir::ConvertOpToLLVMPattern<sir::StrOp> {
   }
 };
 
-struct ConvertEnvLoadOp : mlir::ConvertOpToLLVMPattern<sir::EnvLoadOp> {
-  using ConvertOpToLLVMPattern<sir::EnvLoadOp>::ConvertOpToLLVMPattern;
+struct ConvertEnvLoadOp : mlir::ConvertOpToLLVMPattern<chir::EnvLoadOp> {
+  using ConvertOpToLLVMPattern<chir::EnvLoadOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::EnvLoadOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::EnvLoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
 
@@ -179,10 +180,10 @@ struct ConvertEnvLoadOp : mlir::ConvertOpToLLVMPattern<sir::EnvLoadOp> {
   }
 };
 
-struct ConvertArgsLoadOp : mlir::ConvertOpToLLVMPattern<sir::ArgsLoadOp> {
-  using ConvertOpToLLVMPattern<sir::ArgsLoadOp>::ConvertOpToLLVMPattern;
+struct ConvertArgsLoadOp : mlir::ConvertOpToLLVMPattern<chir::ArgsLoadOp> {
+  using ConvertOpToLLVMPattern<chir::ArgsLoadOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::ArgsLoadOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::ArgsLoadOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
 
@@ -195,10 +196,10 @@ struct ConvertArgsLoadOp : mlir::ConvertOpToLLVMPattern<sir::ArgsLoadOp> {
   }
 };
 
-struct ConvertEnvStoreOp : mlir::ConvertOpToLLVMPattern<sir::EnvStoreOp> {
-  using ConvertOpToLLVMPattern<sir::EnvStoreOp>::ConvertOpToLLVMPattern;
+struct ConvertEnvStoreOp : mlir::ConvertOpToLLVMPattern<chir::EnvStoreOp> {
+  using ConvertOpToLLVMPattern<chir::EnvStoreOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::EnvStoreOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::EnvStoreOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
 
@@ -223,11 +224,10 @@ struct ConvertSetOp : mlir::ConvertOpToLLVMPattern<sir::SetOp> {
   }
 };
 
-struct ConvertClosureFromEnvOp
-    : mlir::ConvertOpToLLVMPattern<sir::ClosureFromEnvOp> {
-  using ConvertOpToLLVMPattern<sir::ClosureFromEnvOp>::ConvertOpToLLVMPattern;
+struct ConvertClosureFromEnvOp : mlir::ConvertOpToLLVMPattern<chir::ClosureOp> {
+  using ConvertOpToLLVMPattern<chir::ClosureOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::ClosureFromEnvOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::ClosureOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto lambda_type =
         llvm::dyn_cast<sir::LambdaType>(op.getLambda().getType());
@@ -244,10 +244,10 @@ struct ConvertClosureFromEnvOp
   }
 };
 
-struct ConvertAsBoolOp : mlir::ConvertOpToLLVMPattern<sir::AsBoolOp> {
-  using ConvertOpToLLVMPattern<sir::AsBoolOp>::ConvertOpToLLVMPattern;
+struct ConvertAsBoolOp : mlir::ConvertOpToLLVMPattern<chir::AsBoolOp> {
+  using ConvertOpToLLVMPattern<chir::AsBoolOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::AsBoolOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::AsBoolOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto call = makeLLVMFuncCall("chirart_get_bool", op, rewriter,
                                  rewriter.getI1Type(), {adaptor.getVar()});
@@ -321,13 +321,13 @@ struct ConvertCallOp : mlir::ConvertOpToLLVMPattern<sir::CallOp> {
   }
 };
 
-struct ConvertEnvOp : mlir::ConvertOpToLLVMPattern<sir::EnvOp> {
-  using ConvertOpToLLVMPattern<sir::EnvOp>::ConvertOpToLLVMPattern;
+struct ConvertEnvOp : mlir::ConvertOpToLLVMPattern<chir::EnvOp> {
+  using ConvertOpToLLVMPattern<chir::EnvOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::EnvOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::EnvOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
-    auto env_type = llvm::dyn_cast<sir::EnvType>(op->getResultTypes()[0]);
+    auto env_type = llvm::dyn_cast<chir::EnvType>(op->getResultTypes()[0]);
     if (!env_type) {
       llvm_unreachable("should be an env type");
     }
@@ -342,10 +342,10 @@ struct ConvertEnvOp : mlir::ConvertOpToLLVMPattern<sir::EnvOp> {
   }
 };
 
-struct ConvertFuncRefOp : mlir::ConvertOpToLLVMPattern<sir::FuncRefOp> {
-  using ConvertOpToLLVMPattern<sir::FuncRefOp>::ConvertOpToLLVMPattern;
+struct ConvertFuncRefOp : mlir::ConvertOpToLLVMPattern<chir::FuncRefOp> {
+  using ConvertOpToLLVMPattern<chir::FuncRefOp>::ConvertOpToLLVMPattern;
   mlir::LogicalResult
-  matchAndRewrite(sir::FuncRefOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::FuncRefOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto ptr_type = mlir::LLVM::LLVMPointerType::get(getContext());
     auto address = rewriter.create<mlir::LLVM::AddressOfOp>(
@@ -377,10 +377,10 @@ struct SIRToLLVMConversionPass
     converter.addConversion([&](sir::LambdaType) {
       return mlir::LLVM::LLVMPointerType::get(context);
     });
-    converter.addConversion([&](sir::EnvType) {
+    converter.addConversion([&](chir::EnvType) {
       return mlir::LLVM::LLVMPointerType::get(context);
     });
-    converter.addConversion([&](sir::ArgsType) {
+    converter.addConversion([&](chir::ArgsType) {
       return mlir::LLVM::LLVMPointerType::get(context);
     });
 

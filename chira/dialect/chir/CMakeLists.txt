@@ -12,12 +12,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_mlir_library(SIRToFunc
-    SIRToFunc.cpp
-    SIRToFunc.h
+add_mlir_dialect(CHIROps chir)
 
-    LINK_LIBS PUBLIC
-    MLIRIR
-    SIROps
-    MLIRFuncDialect
+add_mlir_dialect_library(CHIROps
+  CHIROps.h
+  CHIROps.cpp
+
+  DEPENDS
+  MLIRCHIROpsIncGen
+
+  LINK_LIBS PUBLIC
+  MLIRIR
 )

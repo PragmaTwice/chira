@@ -22,7 +22,7 @@ target_link_libraries(chira PUBLIC
     SExprTransforms
     SExprToSIR
     SIRTransforms
-    SIRToFunc
+    CHIRToFunc
     SIRToSCF
     SIRToLLVM
     MLIRExecutionEngine

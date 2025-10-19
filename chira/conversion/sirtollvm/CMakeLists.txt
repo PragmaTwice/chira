@@ -19,6 +19,7 @@ add_mlir_library(SIRToLLVM
     LINK_LIBS PUBLIC
     MLIRIR
     SIROps
+    CHIROps
     MLIRLLVMDialect
     MLIRLLVMCommonConversion
     MLIRSCFToControlFlow

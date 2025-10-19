@@ -12,5 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+add_subdirectory(chir)
 add_subdirectory(sexpr)
 add_subdirectory(sir)

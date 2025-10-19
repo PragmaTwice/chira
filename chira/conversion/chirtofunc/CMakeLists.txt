@@ -12,7 +12,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-add_subdirectory(sexprtosir)
-add_subdirectory(chirtofunc)
-add_subdirectory(sirtollvm)
-add_subdirectory(sirtoscf)
+add_mlir_library(CHIRToFunc
+    CHIRToFunc.cpp
+    CHIRToFunc.h
+
+    LINK_LIBS PUBLIC
+    MLIRIR
+    CHIROps
+    MLIRFuncDialect
+)

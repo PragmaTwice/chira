@@ -21,4 +21,5 @@ add_mlir_library(SIRTransforms
     LINK_LIBS PUBLIC
     MLIRIR
     SIROps
+    CHIROps
 )

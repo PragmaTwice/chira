@@ -12,15 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CHIRA_CONVERSION_SIRTOFUNC_SEXPRTOSIR
-#define CHIRA_CONVERSION_SIRTOFUNC_SEXPRTOSIR
+#include "chira/dialect/chir/CHIROps.h"
 
-#include "mlir/Pass/Pass.h"
+#include "chira/dialect/chir/CHIROpsDialect.cpp.inc"
 
-namespace chira {
+#define GET_TYPEDEF_CLASSES
+#include "chira/dialect/chir/CHIROpsTypes.cpp.inc"
 
-std::unique_ptr<mlir::Pass> createSIRToFuncConversionPass();
+#define GET_OP_CLASSES
+#include "chira/dialect/chir/CHIROps.cpp.inc"
 
+namespace chira::chir {
+
+void CHIRDialect::initialize() {
+  addTypes<
+#define GET_TYPEDEF_LIST
+#include "chira/dialect/chir/CHIROpsTypes.cpp.inc"
+      >();
+  addOperations<
+#define GET_OP_LIST
+#include "chira/dialect/chir/CHIROps.cpp.inc"
+      >();
 }
 
-#endif // CHIRA_CONVERSION_SIRTOFUNC_SEXPRTOSIR
+} // namespace chira::sexpr

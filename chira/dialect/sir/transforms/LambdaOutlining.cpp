@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/dialect/chir/CHIROps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "chira/dialect/sir/transforms/Passes.h"
 #include "mlir/IR/Builders.h"
@@ -37,13 +38,13 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
   matchAndRewrite(sir::ClosureOp op,
                   mlir::PatternRewriter &rewriter) const override {
     auto ip = rewriter.saveInsertionPoint();
-    rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
+    rewriter.setInsertionPoint(op->getParentOfType<chir::FuncOp>());
 
     auto name = "lambda_" + std::to_string(lambda_count.fetch_add(1));
     auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
     auto i64 = mlir::IntegerType::get(getContext(), 64);
-    auto func = rewriter.create<sir::FuncOp>(
+    auto func = rewriter.create<chir::FuncOp>(
         op->getLoc(), name_attr,
         mlir::IntegerAttr::get(i64, op.getCaps().size()));
     func.getBody().takeBody(op.getBody());
@@ -53,7 +54,7 @@ struct ConvertClosure : mlir::OpRewritePattern<sir::ClosureOp> {
         getContext(), func.getBody().getNumArguments() - op.getCaps().size(),
         op.getCaps().size());
     auto func_ref =
-        rewriter.create<sir::FuncRefOp>(op->getLoc(), lambda_type, symbol);
+        rewriter.create<chir::FuncRefOp>(op->getLoc(), lambda_type, symbol);
     auto var_type = sir::VarType::get(getContext());
     auto bind = rewriter.replaceOpWithNewOp<sir::BindOp>(
         op, var_type, mlir::ValueRange{func_ref}, op.getCaps());
@@ -76,18 +77,18 @@ struct ConvertLambda : mlir::OpRewritePattern<sir::LambdaOp> {
   matchAndRewrite(sir::LambdaOp op,
                   mlir::PatternRewriter &rewriter) const override {
     auto ip = rewriter.saveInsertionPoint();
-    rewriter.setInsertionPoint(op->getParentOfType<sir::FuncOp>());
+    rewriter.setInsertionPoint(op->getParentOfType<chir::FuncOp>());
 
     auto name = "lambda_" + std::to_string(lambda_count.fetch_add(1));
     auto name_attr = mlir::StringAttr::get(getContext(), name);
     auto symbol = mlir::SymbolRefAttr::get(getContext(), name);
-    auto func = rewriter.create<sir::FuncOp>(
+    auto func = rewriter.create<chir::FuncOp>(
         op->getLoc(), name_attr,
         rewriter.getI64IntegerAttr(op.getType().getCapSize()));
     func.getBody().takeBody(op.getBody());
 
     rewriter.restoreInsertionPoint(ip);
-    rewriter.replaceOpWithNewOp<sir::FuncRefOp>(op, op.getType(), symbol);
+    rewriter.replaceOpWithNewOp<chir::FuncRefOp>(op, op.getType(), symbol);
     return mlir::success();
   }
 
@@ -106,7 +107,7 @@ struct LambdaOutliningPass
     mlir::OpBuilder builder(context);
     builder.setInsertionPointToStart(new_module.getBody());
     auto i64 = mlir::IntegerType::get(context, 64);
-    auto main = builder.create<sir::FuncOp>(
+    auto main = builder.create<chir::FuncOp>(
         module->getLoc(), mlir::StringAttr::get(context, "main"),
         mlir::IntegerAttr::get(i64, 0));
     main.getBody().takeBody(module.getRegion());

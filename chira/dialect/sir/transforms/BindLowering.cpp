@@ -26,6 +26,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/dialect/chir/CHIROps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "chira/dialect/sir/transforms/Passes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -50,14 +51,14 @@ struct ConvertBindOp : public mlir::OpRewritePattern<sir::BindOp> {
 
     auto lambda = op.getLambdas().front();
     auto caps = op.getCaps();
-    auto env_type = sir::EnvType::get(getContext(), caps.size());
-    auto env = rewriter.create<EnvOp>(op->getLoc(), env_type);
+    auto env_type = chir::EnvType::get(getContext(), caps.size());
+    auto env = rewriter.create<chir::EnvOp>(op->getLoc(), env_type);
     auto var_type = sir::VarType::get(getContext());
-    auto closure = rewriter.create<sir::ClosureFromEnvOp>(
-        op->getLoc(), var_type, lambda, env);
+    auto closure =
+        rewriter.create<chir::ClosureOp>(op->getLoc(), var_type, lambda, env);
     size_t idx = 0;
     for (auto cap : caps) {
-      rewriter.create<EnvStoreOp>(
+      rewriter.create<chir::EnvStoreOp>(
           op->getLoc(), env, rewriter.getI64IntegerAttr(idx++),
           llvm::isa<LambdaType>(cap.getType()) ? closure : cap);
     }

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "chira/conversion/chirtofunc/CHIRToFunc.h"
 #include "chira/conversion/sexprtosir/SExprToSIR.h"
-#include "chira/conversion/sirtofunc/SIRToFunc.h"
 #include "chira/conversion/sirtollvm/SIRToLLVM.h"
 #include "chira/conversion/sirtoscf/SIRToSCF.h"
 #include "chira/dialect/sexpr/SExprPrinter.h"
@@ -76,6 +76,12 @@ llvm::cl::opt<bool>
               llvm::cl::desc("transform the input program to SIR and output it "
                              "in the MLIR SIR text form"),
               llvm::cl::init(false), llvm::cl::cat(CLICat));
+
+llvm::cl::opt<bool> OutputCHIR(
+    "chir",
+    llvm::cl::desc("transform the input program to CHIR and output it "
+                   "in the MLIR CHIR text form"),
+    llvm::cl::init(false), llvm::cl::cat(CLICat));
 
 llvm::cl::opt<bool> OutputLLVM(
     "llvmir",
@@ -195,8 +201,24 @@ int main(int argc, char *argv[]) {
 
     pm.addPass(chira::sir::createLambdaOutliningPass());
     pm.addPass(chira::sir::createBindLoweringPass());
-    pm.addPass(chira::createSIRToFuncConversionPass());
     pm.addPass(chira::createSIRToSCFConversionPass());
+
+    if (mlir::failed(pm.run(module))) {
+      return 1;
+    }
+  }
+
+  if (OutputCHIR) {
+    module->print(os, flags);
+    return 0;
+  }
+
+  {
+    mlir::PassManager pm(module->getContext());
+    if (PrintIR)
+      pm.enableIRPrinting();
+
+    pm.addPass(chira::createCHIRToFuncConversionPass());
     pm.addPass(mlir::createConvertSCFToCFPass());
     pm.addPass(chira::createSIRToLLVMConversionPass());
     pm.addPass(mlir::LLVM::createDIScopeForLLVMFuncOpPass());

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "chira/conversion/sirtofunc/SIRToFunc.h"
-#include "chira/dialect/sir/SIROps.h"
+#include "chira/conversion/chirtofunc/CHIRToFunc.h"
+#include "chira/dialect/chir/CHIROps.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -26,17 +26,17 @@ namespace chira {
 
 namespace {
 
-struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
+struct ConvertFuncOp : public mlir::OpConversionPattern<chir::FuncOp> {
   using OpConversionPattern::OpConversionPattern;
 
   mlir::LogicalResult
-  matchAndRewrite(sir::FuncOp op, OpAdaptor adaptor,
+  matchAndRewrite(chir::FuncOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
     auto cap_size = op.getCapSize().getUInt();
     auto param_size = op.getBody().getNumArguments() - cap_size;
     auto var_type = sir::VarType::get(getContext());
-    auto env_type = sir::EnvType::get(getContext(), cap_size);
-    auto args_type = sir::ArgsType::get(getContext(), param_size);
+    auto env_type = chir::EnvType::get(getContext(), cap_size);
+    auto args_type = chir::ArgsType::get(getContext(), param_size);
     std::vector<mlir::Type> arg_types{var_type, args_type, env_type};
     auto type = rewriter.getFunctionType(arg_types, {});
     std::string name = "chiracg_" + op.getSymName().getValue().str();
@@ -52,7 +52,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     for (size_t i = param_begin; i < param_begin + param_size; ++i) {
       auto arg = body->getArgument(i);
 
-      auto env_arg = builder.create<sir::ArgsLoadOp>(
+      auto env_arg = builder.create<chir::ArgsLoadOp>(
           arg.getLoc(), var_type, args,
           builder.getI64IntegerAttr(i - param_begin));
       arg.replaceAllUsesWith(env_arg);
@@ -61,7 +61,7 @@ struct ConvertFuncOp : public mlir::OpConversionPattern<sir::FuncOp> {
     for (size_t i = cap_begin; i < cap_begin + cap_size; ++i) {
       auto arg = body->getArgument(i);
 
-      auto env_arg = builder.create<sir::EnvLoadOp>(
+      auto env_arg = builder.create<chir::EnvLoadOp>(
           arg.getLoc(), var_type, env,
           builder.getI64IntegerAttr(i - cap_begin));
       arg.replaceAllUsesWith(env_arg);
@@ -80,7 +80,7 @@ struct ConvertYieldOp : public mlir::OpConversionPattern<sir::YieldOp> {
   mlir::LogicalResult
   matchAndRewrite(sir::YieldOp op, OpAdaptor adaptor,
                   mlir::ConversionPatternRewriter &rewriter) const override {
-    if (!llvm::isa<sir::FuncOp>(op->getParentOp()) &&
+    if (!llvm::isa<chir::FuncOp>(op->getParentOp()) &&
         !llvm::isa<mlir::func::FuncOp>(op->getParentOp())) {
       return mlir::failure();
     }
@@ -92,8 +92,8 @@ struct ConvertYieldOp : public mlir::OpConversionPattern<sir::YieldOp> {
   }
 };
 
-struct SIRToFuncConversionPass
-    : public mlir::PassWrapper<SIRToFuncConversionPass,
+struct CHIRToFuncConversionPass
+    : public mlir::PassWrapper<CHIRToFuncConversionPass,
                                mlir::OperationPass<mlir::ModuleOp>> {
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
@@ -120,8 +120,8 @@ struct SIRToFuncConversionPass
 
 } // namespace
 
-std::unique_ptr<mlir::Pass> createSIRToFuncConversionPass() {
-  return std::make_unique<SIRToFuncConversionPass>();
+std::unique_ptr<mlir::Pass> createCHIRToFuncConversionPass() {
+  return std::make_unique<CHIRToFuncConversionPass>();
 }
 
 } // namespace chira

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "chira/conversion/sirtoscf/SIRToSCF.h"
+#include "chira/dialect/chir/CHIROps.h"
 #include "chira/dialect/sir/SIROps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
@@ -32,7 +33,7 @@ struct ConvertIfOp : public mlir::OpRewritePattern<sir::IfOp> {
   matchAndRewrite(sir::IfOp op,
                   mlir::PatternRewriter &rewriter) const override {
     auto var_type = sir::VarType::get(getContext());
-    auto cond = rewriter.create<sir::AsBoolOp>(
+    auto cond = rewriter.create<chir::AsBoolOp>(
         op->getLoc(), rewriter.getI1Type(), op.getCond());
     auto scf_if =
         rewriter.create<mlir::scf::IfOp>(op->getLoc(), var_type, cond);
@@ -65,7 +66,7 @@ struct SIRToSCFConversionPass
                                mlir::OperationPass<mlir::ModuleOp>> {
 
   void getDependentDialects(mlir::DialectRegistry &registry) const override {
-    registry.insert<mlir::scf::SCFDialect>();
+    registry.insert<mlir::scf::SCFDialect, chir::CHIRDialect>();
   }
 
   void runOnOperation() override {
