@@ -151,11 +151,11 @@ struct ConvertClosureOp : mlir::ConvertOpToLLVMPattern<chir::ClosureOp> {
     if (!lambda_type) {
       llvm_unreachable("should be a lambda type");
     }
-    auto cap_size = rewriter.create<mlir::LLVM::ConstantOp>(
+    auto param_size = rewriter.create<mlir::LLVM::ConstantOp>(
         op->getLoc(), rewriter.getI64Type(), lambda_type.getParamSize());
     auto var = allocVar(op, rewriter);
     makeLLVMFuncCall("chirart_closure", op, rewriter, getVoidType(),
-                     {var, adaptor.getLambda(), adaptor.getEnv(), cap_size});
+                     {var, adaptor.getLambda(), adaptor.getEnv(), param_size});
     rewriter.replaceOp(op, var);
     return mlir::success();
   }
