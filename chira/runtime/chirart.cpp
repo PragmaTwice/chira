@@ -70,16 +70,30 @@ extern "C" {
   }
 }
 [[gnu::always_inline]] void chirart_sub(Var *v, Args args, Env) {
-  auto &l = args->args[0], &r = args->args[1];
-  *v = l - r;
+  if (args->size == 1) {
+    *v = -args->args[0];
+  } else {
+    *v = args->args[0];
+    for (size_t i = 1; i < args->size; i++) {
+      *v = *v - args->args[i];
+    }
+  }
 }
 [[gnu::always_inline]] void chirart_mul(Var *v, Args args, Env) {
-  auto &l = args->args[0], &r = args->args[1];
-  *v = l * r;
+  *v = Var(1l);
+  for (auto &a : *args) {
+    *v = *v * a;
+  }
 }
 [[gnu::always_inline]] void chirart_div(Var *v, Args args, Env) {
-  auto &l = args->args[0], &r = args->args[1];
-  *v = l / r;
+  if (args->size == 1) {
+    *v = Var(1l) / args->args[0];
+  } else {
+    *v = args->args[0];
+    for (size_t i = 1; i < args->size; i++) {
+      *v = *v / args->args[i];
+    }
+  }
 }
 [[gnu::always_inline]] void chirart_lt(Var *v, Args args, Env) {
   auto &l = args->args[0], &r = args->args[1];

@@ -24,12 +24,16 @@ namespace chira::sir {
 inline struct NoLessThan {
 } no_less_than;
 
+inline struct Any {
+} any;
+
 struct Arity {
   bool flag;
   size_t size;
 
   Arity(size_t size) : flag(false), size(size) {}
   Arity(NoLessThan, size_t size) : flag(true), size(size) {}
+  Arity(Any) : flag(true), size(0) {}
 
   inline static constexpr const uint16_t PARAM_FLAG_BIT = 0x8000;
   inline static constexpr const uint16_t PARAM_VAL_MASK = 0x7fff;
@@ -55,10 +59,10 @@ struct PrimOp {
 
 struct PrimOps {
   static inline std::vector<PrimOp> list = {
-      {"+", "add", PrimOp::Arith, {no_less_than, 1}},
-      {"-", "sub", PrimOp::Arith, 2},
-      {"*", "mul", PrimOp::Arith, 2},
-      {"/", "div", PrimOp::Arith, 2},
+      {"+", "add", PrimOp::Arith, any},
+      {"-", "sub", PrimOp::Arith, {no_less_than, 1}},
+      {"*", "mul", PrimOp::Arith, any},
+      {"/", "div", PrimOp::Arith, {no_less_than, 1}},
       {"<", "lt", PrimOp::Arith, 2},
       {">", "gt", PrimOp::Arith, 2},
       {"<=", "le", PrimOp::Arith, 2},

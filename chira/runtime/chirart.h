@@ -207,6 +207,26 @@ public:
     return data.pair.right;
   }
 
+  [[gnu::always_inline]] Var operator+() {
+    if (isInt()) {
+      return Var(+getInt());
+    } else if (isFloat()) {
+      return Var(+getFloat());
+    }
+
+    unreachable("Invalid type to perform unary addition");
+  }
+
+  [[gnu::always_inline]] Var operator-() {
+    if (isInt()) {
+      return Var(-getInt());
+    } else if (isFloat()) {
+      return Var(-getFloat());
+    }
+
+    unreachable("Invalid type to perform unary subtraction");
+  }
+
   [[gnu::always_inline]] friend Var operator+(const Var &l, const Var &r) {
     if (l.isInt() && r.isInt()) {
       return Var(l.getInt() + r.getInt());
